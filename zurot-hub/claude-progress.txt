@@ -74,3 +74,72 @@
 - Respected phase gating rules
 
 **End of Session 1**
+
+---
+
+## Session 2 - Phase 0 Verification (Coding Agent)
+**Date:** 2025-12-16
+**Session:** 2 (Coding Agent)
+
+## Verification Results
+
+### ✅ Features Verified (4/6 PASS)
+1. **Clerk login creates or updates `users`** - PASS
+   - `upsertUserFromClerk` correctly handles both create and update
+   - Updates `lastLoginAt` on existing users
+   - Creates new users with proper timestamps
+
+2. **Profiles can be created and archived** - PASS
+   - `createProfile` mutation works correctly
+   - `archiveProfile` mutation updates status to "archived"
+   - Proper error handling for duplicate handles
+
+3. **Duplicate handles are rejected** - PASS
+   - Handle uniqueness check in `createProfile`
+   - Throws "Handle already taken" error appropriately
+   - Uses `by_handle` index for efficient lookup
+
+4. **Profiles list by user** - PASS
+   - `listProfilesForUser` correctly filters by userId
+   - Returns only "active" status profiles
+   - Uses `by_user_id` index for efficient queries
+
+### ❌ Critical Violations Found (2/6 FAIL)
+5. **No mutation accepts userId as owner** - FAIL
+   - **VIOLATION**: `createProfile` accepts `userId` as parameter
+   - **Architecture Violation**: Contradicts Core Spec line 108
+
+6. **All data ownership uses profileId** - FAIL
+   - **VIOLATION**: Schema includes `profiles.userId` field
+   - **Architecture Violation**: Contradicts Core Spec line 107
+
+## Root Cause: Code Pack vs Architecture Conflict
+
+The Phase 0 Convex Identity Code Pack itself violates the frozen architecture:
+
+- Code Pack instructs to use `userId` in profile creation
+- Architecture explicitly forbids userId as ownership
+- Implementation is correct according to code pack
+- Code pack is incorrect according to architecture
+
+## Impact Assessment
+
+**Phase 0 Status: BLOCKED**
+- Cannot proceed to Phase 1
+- Federation guarantees compromised
+- OIDC `sub = profileId` principle weakened
+
+## Next Steps Required
+
+1. **STOP** - Do not proceed to Phase 1
+2. **RESOLVE** - Code pack must be revised to comply with architecture
+3. **RE-EXECUTE** - Updated code pack must be implemented VERBATIM
+4. **RE-VERIFY** - All 6 Phase 0 features must pass before proceeding
+
+## Files Created/Modified
+
+- `feature_list.json` - Updated with verification results (4/6 pass)
+- `phase-0-analysis.md` - Detailed violation analysis and impact report
+- `claude-progress.txt` - This progress file
+
+**End of Session 2 - PHASE 0 BLOCKED ON SPECIFICATION CONFLICT**
