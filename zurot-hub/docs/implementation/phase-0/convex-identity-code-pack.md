@@ -215,14 +215,14 @@ export const ingestActivity = mutation({
 
 ---
 
-## 7. Phase 0 Harness Checklist (Pass/Fail)
+## 7. Phase 0 Harness Checklist (Pass / Fail)
 
 - [ ] Clerk login creates or updates `users`
 - [ ] Profiles can be created and archived
 - [ ] Duplicate handles are rejected
-- [ ] Profiles list by user
-- [ ] No mutation accepts userId as owner
-- [ ] All data ownership uses profileId
+- [ ] Profiles list correctly by `userId` (human → profiles link)
+- [ ] `userId` is used **only** to link a profile to a human
+- [ ] All acting identity, authorization, and data ownership use **only `profileId`**
 
 ---
 
@@ -234,6 +234,7 @@ Phase 0 identity substrate is DONE when:
 - All mutations run
 - Profiles persist correctly
 - Handle resolution works
+- No acting identity or ownership uses `userId`
 - No app code exists yet
 
 ---

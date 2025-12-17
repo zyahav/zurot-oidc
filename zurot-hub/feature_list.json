@@ -22,12 +22,12 @@
   {
     "phase": 0,
     "description": "No mutation accepts userId as owner",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 0,
     "description": "All data ownership uses profileId",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 1,

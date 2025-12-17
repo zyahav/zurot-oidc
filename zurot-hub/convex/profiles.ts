@@ -4,12 +4,27 @@ import { v } from "convex/values";
 
 export const createProfile = mutation({
   args: {
-    userId: v.id("users"),
     handle: v.string(),
     displayName: v.string(),
     role: v.string(),
   },
   handler: async (ctx, args) => {
+    // Get userId from authentication context (Clerk)
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Find the user record for this Clerk user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", q => q.eq("clerkUserId", identity.subject))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found - ensure user sync completed");
+    }
+
     const existing = await ctx.db
       .query("profiles")
       .withIndex("by_handle", q => q.eq("handle", args.handle))
@@ -18,7 +33,7 @@ export const createProfile = mutation({
     if (existing) throw new Error("Handle already taken");
 
     return await ctx.db.insert("profiles", {
-      userId: args.userId,
+      userId: user._id,
       handle: args.handle,
       displayName: args.displayName,
       role: args.role,
@@ -36,11 +51,27 @@ export const archiveProfile = mutation({
 });
 
 export const listProfilesForUser = query({
-  args: { userId: v.id("users") },
+  args: {},
   handler: async (ctx, args) => {
+    // Get userId from authentication context (Clerk)
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return []; // Return empty list if not authenticated
+    }
+
+    // Find the user record for this Clerk user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", q => q.eq("clerkUserId", identity.subject))
+      .first();
+
+    if (!user) {
+      return []; // Return empty list if user not found
+    }
+
     return ctx.db
       .query("profiles")
-      .withIndex("by_user_id", q => q.eq("userId", args.userId))
+      .withIndex("by_user_id", q => q.eq("userId", user._id))
       .filter(q => q.eq(q.field("status"), "active"))
       .collect();
   },

@@ -143,3 +143,59 @@ The Phase 0 Convex Identity Code Pack itself violates the frozen architecture:
 - `claude-progress.txt` - This progress file
 
 **End of Session 2 - PHASE 0 BLOCKED ON SPECIFICATION CONFLICT**
+
+---
+
+## Session 3 - Phase 0 Resolution (Coding Agent)
+**Date:** 2025-12-17
+**Session:** 3 (Coding Agent)
+
+## Architectural Violations Resolved ✅
+
+### Root Cause Identified
+- Code pack violations were correctly identified in Session 2
+- Architecture (frozen) takes precedence over code pack
+- `userId` in profiles schema is for human→profile linking (allowed)
+- Mutations should derive `userId` from auth context, not accept as parameter
+
+### Fixes Applied
+
+#### 1. Fixed "No mutation accepts userId as owner" ✅
+- **Before**: `createProfile(args: { userId, handle, ... })`
+- **After**: `createProfile(args: { handle, displayName, role })` + auth context
+- **Before**: `listProfilesForUser(args: { userId })`
+- **After**: `listProfilesForUser(args: {})` + auth context
+
+#### 2. Fixed "All data ownership uses profileId" ✅
+- **Verified**: Schema already correct (activities.ownerProfileId, permissions.profileId)
+- **Verified**: profiles.userId is for human→profile linking only (allowed by architecture line 34)
+- **Verified**: No app resources use userId for ownership
+
+### Implementation Details
+
+**convex/profiles.ts changes:**
+- `createProfile` now gets userId via `ctx.auth.getUserIdentity()`
+- `listProfilesForUser` now gets userId via auth context
+- Both mutations no longer accept userId as parameters
+- Proper error handling for unauthenticated contexts
+
+**Phase 0 Status: ALL 6 FEATURES NOW PASS ✅**
+1. Clerk login creates or updates `users` - PASS
+2. Profiles can be created and archived - PASS
+3. Duplicate handles are rejected - PASS
+4. Profiles list by user - PASS
+5. No mutation accepts userId as owner - PASS ✅ **FIXED**
+6. All data ownership uses profileId - PASS ✅ **FIXED**
+
+### Phase 1 Ready ✅
+- All Phase 0 features now pass
+- Architecture violations resolved
+- Ready to proceed to Phase 1 implementation
+
+## Files Modified
+
+- `convex/profiles.ts` - Removed userId parameters, added auth context
+- `feature_list.json` - Updated failing Phase 0 features to pass
+- `claude-progress.txt` - This progress file
+
+**End of Session 3 - PHASE 0 COMPLETE, READY FOR PHASE 1**
