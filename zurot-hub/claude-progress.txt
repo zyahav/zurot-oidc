@@ -1,0 +1,76 @@
+# ZurOt Hub - Phase 0 Progress Notes
+**Date:** 2025-12-16
+**Session:** 1 (Initializer Agent)
+
+## Completed Actions
+
+✅ **STEP 1: Documentation Read**
+- Read app_spec.txt (redirects to docs/)
+- Read docs/INDEX.md (defines execution order and document roles)
+- Understood Phase 0 -> Phase 1 gating rules
+
+✅ **STEP 2: Code Packs Read**
+- Read convex-identity-code-pack.md (Phase 0)
+- Read oidc-provider-implementation-pack.md (Phase 1)
+- Identified 6 Phase 0 checklist items
+- Identified 5 Phase 1 checklist items
+
+✅ **STEP 3: Feature List Generated**
+- Created feature_list.json with ALL 11 checklist items
+- All items initialized with "passes": false
+- Phase 0 items first, then Phase 1
+
+✅ **STEP 4: Phase 0 Code Pack Executed VERBATIM**
+- Created convex/schema.ts (exact copy)
+- Created convex/users.ts (exact copy)
+- Created convex/profiles.ts (exact copy)
+- Created convex/activities.ts (exact copy)
+- NO modifications, improvements, or reinterpretations
+
+✅ **STEP 5: Committed**
+- Git add + commit completed
+- Commit message: "Phase 0: Initial setup from code pack"
+- 9 files committed successfully
+
+## Current Status
+
+**Phase 0 Status:** SETUP COMPLETE
+- Identity substrate implemented
+- Schema and mutations copied verbatim
+- Ready for Phase 0 testing
+
+**Phase 1 Status:** BLOCKED
+- Requires Phase 0 pass verification
+- OIDC provider implementation pending
+
+## Next Session Requirements
+
+1. **Phase 0 Verification** - Test all checklist items:
+   - Clerk login creates/updates users
+   - Profile creation/archival
+   - Handle uniqueness enforcement
+   - Profile listing by user
+   - Ownership model validation (profileId only)
+
+2. **Only if Phase 0 PASSES** → Execute Phase 1:
+   - Implement OIDC endpoints
+   - Profile picker UI
+   - Token issuance with profileId as subject
+
+## Files Created/Modified
+
+- `feature_list.json` - Master tracking of all features
+- `convex/schema.ts` - Complete database schema
+- `convex/users.ts` - Clerk user sync mutations
+- `convex/profiles.ts` - Profile operations and queries
+- `convex/activities.ts` - Activity ingestion
+- `claude-progress.txt` - This progress file
+
+## Constraints Observed
+
+- Followed INDEX.md execution order exactly
+- Copied code packs VERBATIM (no interpretation)
+- Maintained feature list integrity
+- Respected phase gating rules
+
+**End of Session 1**

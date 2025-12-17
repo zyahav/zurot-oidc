@@ -2,22 +2,22 @@
   {
     "phase": 0,
     "description": "Clerk login creates or updates `users`",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 0,
     "description": "Profiles can be created and archived",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 0,
     "description": "Duplicate handles are rejected",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 0,
     "description": "Profiles list by user",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 0,
