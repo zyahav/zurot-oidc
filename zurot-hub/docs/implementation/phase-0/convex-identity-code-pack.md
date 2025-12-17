@@ -15,7 +15,7 @@ It is designed for **harness-driven execution** (BMAD / Anthropic-style).
 - `profileId` is the only acting identity
 - `userId` (Clerk) is never used for ownership
 - All queries return profile-scoped data
-- All mutations enforce profile ownership
+- All acting identity and data ownership use profileId (userId is allowed only for human→profile linking)
 
 ---
 
