@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/zyahav/Documents/dev/ZurOt.org/zurot-hub-monorepo/zurot-hub/logs/.449d47f29696725c1dde8b7156800bfb74a5c03b-audit.json",
+    "files": [
+        {
+            "date": 1765950176088,
+            "name": "/Users/zyahav/Documents/dev/ZurOt.org/zurot-hub-monorepo/zurot-hub/logs/mcp-puppeteer-2025-12-16.log",
+            "hash": "a265189bbe0bfff4b0560a282db7e4405fb26f64e1c02f627bc2389f1590799e"
+        }
+    ],
+    "hashType": "sha256"
+}

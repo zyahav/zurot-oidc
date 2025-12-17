@@ -1,0 +1,5 @@
+This project is defined entirely by the documentation located at:
+
+<PROJECT_ROOT>/docs/app_spec.txt
+
+Follow that file. Do not invent requirements.
