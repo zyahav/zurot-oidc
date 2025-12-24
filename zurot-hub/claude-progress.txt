@@ -1,0 +1,80 @@
+# ZurOt Hub - Progress Notes
+**Last Updated:** 2025-12-17
+**Current Phase:** Phase 0 + Phase 1 ✅ COMPLETE AND VERIFIED
+
+---
+
+## ✅ PHASE 0 + PHASE 1 FULLY TESTED AND WORKING
+
+**Tested on:** 2025-12-17 via Chrome DevTools
+**Test user:** zyahav@gmail.com
+**Profiles tested:** Mr. Zuriel (@zuriel), Admin Zuriel (@admin-z)
+
+### Test Results:
+- Profile A (Mr. Zuriel): sub = `js7f6za7j390q6s42kf5vfbwk57xe3pk`
+- Profile B (Admin Zuriel): sub = `js7cgetnyw1sbg6e6ebby037mx7xe5av`
+- Same userId for both: `jx75qay8haz2vz3q9mea4psy5h7xf481`
+
+✅ sub = profileId (PASS)
+✅ sub ≠ userId (PASS)
+✅ Switching profile changes sub (PASS)
+✅ Same human, two identities (PASS)
+
+---
+
+## Phase 0: ✅ COMPLETE (6/6)
+
+1. ✅ Clerk login creates or updates users
+2. ✅ Profiles can be created and archived
+3. ✅ Duplicate handles are rejected
+4. ✅ Profiles list by user
+5. ✅ No mutation accepts userId as owner
+6. ✅ All data ownership uses profileId
+
+---
+
+## Phase 1: ✅ COMPLETE (5/5)
+
+1. ✅ App receives token with sub = profileId
+2. ✅ Switching profile changes sub
+3. ✅ Same human, two profiles → two identities
+4. ✅ OSS app treats profiles as separate users
+5. ✅ Token validates via JWKS
+
+---
+
+## OIDC Endpoints (All Working)
+
+- GET /oauth/authorize - Netflix profile picker
+- POST /api/oauth/authorize - Auth code generation
+- POST /api/oauth/token - Token exchange
+- GET /api/oauth/userinfo - Profile info
+- GET /.well-known/openid-configuration
+- GET /.well-known/jwks.json
+
+---
+
+## Next Steps (Per docs/INDEX.md)
+
+Phase 0 ✅ → Phase 1 ✅ → Phase 2 (Build apps)
+
+Ready to proceed with:
+- Build Lobby app
+- Integrate OSS apps
+- Implement activity feed
+
+---
+
+## Key Files
+
+- convex/schema.ts - Database schema
+- convex/profiles.ts - Profile CRUD
+- convex/oauth.ts - Auth code storage
+- src/app/oauth/authorize/page.tsx - Profile picker
+- src/app/api/oauth/*/route.ts - OIDC endpoints
+- src/app/test/page.tsx - Test client
+- src/lib/jwt.ts - Token generation
+
+---
+
+End of Progress Notes.

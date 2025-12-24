@@ -1,0 +1,57 @@
+[
+  {
+    "phase": 0,
+    "description": "Clerk login creates or updates `users`",
+    "passes": true
+  },
+  {
+    "phase": 0,
+    "description": "Profiles can be created and archived",
+    "passes": true
+  },
+  {
+    "phase": 0,
+    "description": "Duplicate handles are rejected",
+    "passes": true
+  },
+  {
+    "phase": 0,
+    "description": "Profiles list by user",
+    "passes": true
+  },
+  {
+    "phase": 0,
+    "description": "No mutation accepts userId as owner",
+    "passes": true
+  },
+  {
+    "phase": 0,
+    "description": "All data ownership uses profileId",
+    "passes": true
+  },
+  {
+    "phase": 1,
+    "description": "App receives token with `sub = profileId`",
+    "passes": true
+  },
+  {
+    "phase": 1,
+    "description": "Switching profile changes `sub`",
+    "passes": true
+  },
+  {
+    "phase": 1,
+    "description": "Same human, two profiles → two identities",
+    "passes": true
+  },
+  {
+    "phase": 1,
+    "description": "OSS app treats profiles as separate users",
+    "passes": true
+  },
+  {
+    "phase": 1,
+    "description": "Token validates via JWKS",
+    "passes": true
+  }
+]

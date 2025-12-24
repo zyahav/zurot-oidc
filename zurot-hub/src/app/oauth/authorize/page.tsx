@@ -1,0 +1,188 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  useAuth,
+} from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+
+type Profile = {
+  _id: string;
+  handle: string;
+  displayName: string;
+  role: string;
+  status: string;
+  avatarUrl?: string;
+};
+
+function AuthorizePageContent() {
+  const searchParams = useSearchParams();
+  const { isSignedIn, isLoaded } = useAuth();
+  const profiles = useQuery(api.profiles.listProfilesForUser, {});
+  
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // OAuth parameters
+  const clientId = searchParams.get("client_id");
+  const redirectUri = searchParams.get("redirect_uri");
+  const responseType = searchParams.get("response_type");
+  const state = searchParams.get("state");
+  const profileHint = searchParams.get("profile_hint");
+
+  // Validate OAuth parameters
+  useEffect(() => {
+    if (!clientId || !redirectUri || responseType !== "code") {
+      setError("Invalid OAuth request. Missing required parameters.");
+    }
+  }, [clientId, redirectUri, responseType]);
+
+  // Auto-select profile if profile_hint is valid
+  useEffect(() => {
+    if (profileHint && profiles && isSignedIn) {
+      const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
+      if (hintedProfile && hintedProfile.status === "active") {
+        selectProfile(hintedProfile._id);
+      }
+    }
+  }, [profileHint, profiles, isSignedIn]);
+
+  const selectProfile = async (profileId: string) => {
+    if (!clientId || !redirectUri || !state) {
+      setError("Missing OAuth parameters");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/oauth/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, clientId, redirectUri, state }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate authorization code");
+      }
+
+      const redirectUrl = new URL(redirectUri);
+      redirectUrl.searchParams.set("code", data.code);
+      redirectUrl.searchParams.set("state", state);
+      window.location.href = redirectUrl.toString();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authorization failed");
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isLoaded) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-900">
+        <div className="text-white">Loading...</div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-900 px-4">
+        <div className="max-w-md rounded-xl bg-red-900/50 px-6 py-5 text-center">
+          <h1 className="text-xl font-semibold text-white">Authorization Error</h1>
+          <p className="mt-2 text-sm text-red-200">{error}</p>
+          <button
+            onClick={() => window.history.back()}
+            className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900"
+          >
+            Go back
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-900 px-4 py-10">
+      <SignedOut>
+        <div className="max-w-md rounded-xl bg-zinc-800 px-6 py-8 text-center">
+          <h1 className="text-2xl font-bold text-white">Sign in to ZurOt</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            Sign in to select a profile and authorize this application.
+          </p>
+          <div className="mt-6">
+            <SignInButton mode="modal">
+              <button className="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100">
+                Sign in with Clerk
+              </button>
+            </SignInButton>
+          </div>
+        </div>
+      </SignedOut>
+
+      <SignedIn>
+        <div className="w-full max-w-2xl">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-white">Who's using ZurOt?</h1>
+            <p className="mt-2 text-sm text-zinc-400">
+              Select a profile to continue to <span className="font-mono text-zinc-300">{clientId}</span>
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
+            {profiles?.map((profile: Profile) => (
+              <button
+                key={profile._id}
+                onClick={() => selectProfile(profile._id)}
+                disabled={isSubmitting || profile.status !== "active"}
+                className="group flex flex-col items-center rounded-lg p-4 transition hover:bg-zinc-800 disabled:opacity-50"
+              >
+                <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-3xl font-bold text-white shadow-lg group-hover:scale-105 transition">
+                  {profile.displayName.charAt(0).toUpperCase()}
+                </div>
+                <div className="mt-3 text-center">
+                  <div className="font-semibold text-white">{profile.displayName}</div>
+                  <div className="text-xs text-zinc-500">@{profile.handle}</div>
+                  <div className="mt-1 text-[10px] uppercase text-zinc-600">{profile.role}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {(!profiles || profiles.length === 0) && (
+            <div className="mt-10 text-center">
+              <p className="text-zinc-400">No profiles found.</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Create a profile first at{" "}
+                <a href="/" className="text-blue-400 underline">zurot.org</a>
+              </p>
+            </div>
+          )}
+
+          {isSubmitting && (
+            <div className="mt-8 text-center text-sm text-zinc-400">Authorizing...</div>
+          )}
+        </div>
+      </SignedIn>
+    </main>
+  );
+}
+
+export default function AuthorizePage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center bg-zinc-900">
+        <div className="text-white">Loading...</div>
+      </main>
+    }>
+      <AuthorizePageContent />
+    </Suspense>
+  );
+}
