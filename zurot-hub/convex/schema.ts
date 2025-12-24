@@ -44,4 +44,26 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerProfileId"])
     .index("by_recency", ["createdAt"]),
+
+  activeProfiles: defineTable({
+    userId: v.id("users"),
+    profileId: v.id("profiles"),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  authCodes: defineTable({
+    code: v.string(),
+    profileId: v.id("profiles"),
+    clientId: v.string(),
+    redirectUri: v.string(),
+    expiresAt: v.number(),
+    consumed: v.boolean(),
+  }).index("by_code", ["code"]),
+
+  oauthClients: defineTable({
+    clientId: v.string(),
+    clientSecret: v.optional(v.string()),
+    redirectUris: v.array(v.string()),
+    backchannelLogoutUri: v.optional(v.string()),
+  }).index("by_client_id", ["clientId"]),
 });

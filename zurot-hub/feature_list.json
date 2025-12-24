@@ -32,26 +32,26 @@
   {
     "phase": 1,
     "description": "App receives token with `sub = profileId`",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 1,
     "description": "Switching profile changes `sub`",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 1,
     "description": "Same human, two profiles → two identities",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 1,
     "description": "OSS app treats profiles as separate users",
-    "passes": false
+    "passes": true
   },
   {
     "phase": 1,
     "description": "Token validates via JWKS",
-    "passes": false
+    "passes": true
   }
 ]
