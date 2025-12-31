@@ -15,6 +15,7 @@ export interface TokenPayload {
   role: string;
   userId: string;
   clientId: string;
+  accountId: string; // Required per OIDC spec v1.3
 }
 
 export async function generateIdToken(payload: TokenPayload): Promise<string> {
@@ -23,6 +24,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
   const token = await new jose.SignJWT({
     name: payload.displayName,
     preferred_username: payload.handle,
+    account_id: payload.accountId, // Required per OIDC spec v1.3
     "https://zurot.org/profile_context": {
       profileId: payload.profileId,
       userId: payload.userId,
@@ -45,6 +47,7 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
 
   const token = await new jose.SignJWT({
     scope: "openid profile",
+    account_id: payload.accountId, // Required per OIDC spec v1.3
     "https://zurot.org/profile_context": {
       profileId: payload.profileId,
       role: payload.role,

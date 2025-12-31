@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       role: result.profile.role,
       userId: result.userId,
       clientId,
+      accountId: `account_${result.userId}`, // Per OIDC spec v1.3: account_id as metadata
     };
 
     const idToken = await generateIdToken(tokenPayload);
