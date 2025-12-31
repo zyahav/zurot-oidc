@@ -1,12 +1,68 @@
 import * as jose from "jose";
 
-// For development/testing, using a symmetric key
-// In production, use RSA key pair stored securely
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "zurot-dev-secret-key-change-in-production"
-);
+// =============================================================================
+// RSA Key Configuration for RS256 Signing
+// =============================================================================
+// In production: RSA_PRIVATE_KEY and RSA_PUBLIC_KEY must be set as PEM strings
+// In development: Falls back to generated dev keys (NOT for production use)
+// =============================================================================
+
+let privateKey: jose.CryptoKey | jose.KeyObject | null = null;
+let publicKey: jose.CryptoKey | jose.KeyObject | null = null;
+let publicKeyJWK: jose.JWK | null = null;
+
+// Key ID for JWKS - should be rotated when keys change
+const KEY_ID = "zurot-rs256-key-1";
 
 const ISSUER = process.env.NEXT_PUBLIC_APP_URL || "https://zurot.org";
+
+/**
+ * Initialize RSA keys from environment variables or generate dev keys
+ * MUST be called before any token operations
+ */
+async function initializeKeys(): Promise<void> {
+  if (privateKey && publicKey) return; // Already initialized
+
+  const rsaPrivateKeyPem = process.env.RSA_PRIVATE_KEY;
+  const rsaPublicKeyPem = process.env.RSA_PUBLIC_KEY;
+
+  if (rsaPrivateKeyPem && rsaPublicKeyPem) {
+    // Production: Load keys from environment
+    try {
+      privateKey = await jose.importPKCS8(rsaPrivateKeyPem, "RS256");
+      publicKey = await jose.importSPKI(rsaPublicKeyPem, "RS256");
+      publicKeyJWK = await jose.exportJWK(publicKey);
+      publicKeyJWK.kid = KEY_ID;
+      publicKeyJWK.use = "sig";
+      publicKeyJWK.alg = "RS256";
+      console.log("[JWT] RS256 keys loaded from environment");
+    } catch (error) {
+      console.error("[JWT] Failed to load RSA keys from environment:", error);
+      throw new Error("Invalid RSA keys in environment variables");
+    }
+  } else {
+    // Development only: Generate ephemeral keys
+    // WARNING: These keys change on every restart - NOT for production
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "RSA_PRIVATE_KEY and RSA_PUBLIC_KEY must be set in production"
+      );
+    }
+    console.warn("[JWT] WARNING: Using generated dev keys - NOT FOR PRODUCTION");
+    const { publicKey: pubKey, privateKey: privKey } = await jose.generateKeyPair("RS256", {
+      modulusLength: 2048,
+    });
+    privateKey = privKey;
+    publicKey = pubKey;
+    publicKeyJWK = await jose.exportJWK(publicKey);
+    publicKeyJWK.kid = KEY_ID;
+    publicKeyJWK.use = "sig";
+    publicKeyJWK.alg = "RS256";
+  }
+}
+
+// Auto-initialize on module load (for Next.js)
+const keysReady = initializeKeys();
 
 export interface TokenPayload {
   profileId: string;
@@ -19,6 +75,9 @@ export interface TokenPayload {
 }
 
 export async function generateIdToken(payload: TokenPayload): Promise<string> {
+  await keysReady;
+  if (!privateKey) throw new Error("RSA private key not initialized");
+
   const now = Math.floor(Date.now() / 1000);
 
   const token = await new jose.SignJWT({
@@ -31,18 +90,21 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
       role: payload.role,
     },
   })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: KEY_ID })
     .setIssuer(ISSUER)
     .setAudience(payload.clientId)
     .setSubject(payload.profileId) // CRITICAL: sub = profileId
     .setIssuedAt(now)
     .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
-    .sign(JWT_SECRET);
+    .sign(privateKey);
 
   return token;
 }
 
 export async function generateAccessToken(payload: TokenPayload): Promise<string> {
+  await keysReady;
+  if (!privateKey) throw new Error("RSA private key not initialized");
+
   const now = Math.floor(Date.now() / 1000);
 
   const token = await new jose.SignJWT({
@@ -53,20 +115,23 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
       role: payload.role,
     },
   })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: KEY_ID })
     .setIssuer(ISSUER)
     .setAudience(payload.clientId)
     .setSubject(payload.profileId) // CRITICAL: sub = profileId
     .setIssuedAt(now)
     .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
-    .sign(JWT_SECRET);
+    .sign(privateKey);
 
   return token;
 }
 
 export async function verifyToken(token: string): Promise<jose.JWTPayload | null> {
+  await keysReady;
+  if (!publicKey) throw new Error("RSA public key not initialized");
+
   try {
-    const { payload } = await jose.jwtVerify(token, JWT_SECRET, {
+    const { payload } = await jose.jwtVerify(token, publicKey, {
       issuer: ISSUER,
     });
     return payload;
@@ -84,20 +149,13 @@ export function decodeToken(token: string): jose.JWTPayload | null {
   }
 }
 
-// JWKS for public key distribution (symmetric key version)
-export function getJWKS() {
+// JWKS for public key distribution (RS256)
+export async function getJWKS(): Promise<{ keys: jose.JWK[] }> {
+  await keysReady;
+  if (!publicKeyJWK) throw new Error("Public key JWK not initialized");
+
   return {
-    keys: [
-      {
-        kty: "oct",
-        use: "sig",
-        alg: "HS256",
-        kid: "zurot-key-1",
-        // Note: In production with RS256, this would be the public key
-        // For HS256, JWKS typically isn't used for verification
-        // This is a placeholder for the OIDC discovery endpoint
-      },
-    ],
+    keys: [publicKeyJWK],
   };
 }
 
@@ -111,7 +169,7 @@ export function getOpenIDConfiguration(baseUrl: string) {
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
     subject_types_supported: ["public"],
-    id_token_signing_alg_values_supported: ["HS256"],
+    id_token_signing_alg_values_supported: ["RS256"], // Changed from HS256
     scopes_supported: ["openid", "profile"],
     token_endpoint_auth_methods_supported: ["client_secret_post", "none"],
     claims_supported: [
@@ -119,6 +177,7 @@ export function getOpenIDConfiguration(baseUrl: string) {
       "name",
       "preferred_username",
       "picture",
+      "account_id",
       "https://zurot.org/profile_context",
     ],
   };
