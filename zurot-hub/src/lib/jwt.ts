@@ -36,7 +36,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
     .setAudience(payload.clientId)
     .setSubject(payload.profileId) // CRITICAL: sub = profileId
     .setIssuedAt(now)
-    .setExpirationTime(now + 3600) // 1 hour
+    .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
     .sign(JWT_SECRET);
 
   return token;
@@ -58,7 +58,7 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
     .setAudience(payload.clientId)
     .setSubject(payload.profileId) // CRITICAL: sub = profileId
     .setIssuedAt(now)
-    .setExpirationTime(now + 3600) // 1 hour
+    .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
     .sign(JWT_SECRET);
 
   return token;

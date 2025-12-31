@@ -1,10 +1,9 @@
 {
-  "name": "OIDC-002",
-  "branch": "run/OIDC-002",
-  "created_at": 1767149638.1883252,
+  "name": "OIDC-001",
+  "branch": "run/OIDC-001",
+  "created_at": 1767144100.296198,
   "status": "active",
-  "project_dir": "/Users/zyahav/tools/claude-harness/runs/OIDC-002",
+  "project_dir": "/Users/zyahav/tools/claude-harness/runs/OIDC-001",
   "repo_path": "/Users/zyahav/Documents/dev/ZurOt.org/zurot-hub-monorepo",
-  "archon": null,
-  "handoff": "handoff.json"
+  "archon": null
 }

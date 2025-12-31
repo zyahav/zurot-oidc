@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       {
         access_token: accessToken,
         token_type: "Bearer",
-        expires_in: 3600,
+        expires_in: 900,
         id_token: idToken,
       },
       {
