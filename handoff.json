@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "project": "zurot-hub",
+    "phase": "Phase 1 - OIDC Compliance",
+    "source": "OIDC spec v1.3 - Token Contract",
+    "lock": true
+  },
+  "tasks": [
+    {
+      "id": "OIDC-002",
+      "category": "oidc",
+      "title": "Add account_id claim to tokens",
+      "description": "Per spec, tokens must include account_id as metadata. Currently missing from both ID token and access token.",
+      "acceptance_criteria": [
+        "ID token includes account_id claim",
+        "Access token includes account_id claim",
+        "account_id is derived from the user's account"
+      ],
+      "passes": false,
+      "files_expected": ["zurot-hub/src/lib/jwt.ts"],
+      "steps": [
+        "Add account_id to TokenPayload interface",
+        "Include account_id in generateIdToken claims",
+        "Include account_id in generateAccessToken claims",
+        "Update token endpoint to pass account_id"
+      ]
+    }
+  ]
+}

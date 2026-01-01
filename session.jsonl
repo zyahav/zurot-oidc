@@ -1,0 +1,4 @@
+{"timestamp": "2025-12-30T19:21:40.296748", "level": "DEBUG", "logger": "root", "message": "Logging initialized. Writing to runs/OIDC-001/session.jsonl"}
+{"timestamp": "2025-12-30T19:21:40.296894", "level": "INFO", "logger": "root", "message": "Starting new run: OIDC-001"}
+{"timestamp": "2025-12-30T19:21:40.296953", "level": "INFO", "logger": "root", "message": "\nSuccess! Worktree created at: runs/OIDC-001"}
+{"timestamp": "2025-12-30T19:21:40.296983", "level": "INFO", "logger": "root", "message": "To run the agent:\n  harness run OIDC-001 --repo-path /Users/zyahav/Documents/dev/ZurOt.org/zurot-hub-monorepo"}
