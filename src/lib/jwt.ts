@@ -95,7 +95,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
     .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: KEY_ID })
     .setIssuer(ISSUER)
     .setAudience(payload.clientId)
-    .setSubject(payload.profileId) // CRITICAL: sub = profileId
+    .setSubject(`profile_${payload.profileId}`) // CRITICAL: sub = profile_<id> per spec
     .setIssuedAt(now)
     .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
     .sign(privateKey);
@@ -121,7 +121,7 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
     .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: KEY_ID })
     .setIssuer(ISSUER)
     .setAudience(payload.clientId)
-    .setSubject(payload.profileId) // CRITICAL: sub = profileId
+    .setSubject(`profile_${payload.profileId}`) // CRITICAL: sub = profile_<id> per spec
     .setIssuedAt(now)
     .setExpirationTime(now + 900) // 15 minutes (per OIDC spec v1.3)
     .sign(privateKey);
