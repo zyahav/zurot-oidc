@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { convexServer } from "@/lib/convex-server";
 import { api } from "../../../../../convex/_generated/api";
 import { generateIdToken, generateAccessToken } from "@/lib/jwt";
+import { translatePersonaToScopes, resolveClientToProduct } from "@/lib/translation-engine";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,7 +54,18 @@ export async function POST(request: NextRequest) {
       codeVerifier: codeVerifier || undefined,
     });
 
-    // Generate tokens
+    // ==========================================================================
+    // Persona → Scope Translation (OIDC Spec v1.3 Section 4)
+    // ==========================================================================
+    // The profile's role IS the persona
+    // We translate this to product-specific scopes
+    // Subdomains NEVER see the persona - only the derived scopes
+    // ==========================================================================
+    const persona = result.profile.role;
+    const product = resolveClientToProduct(clientId);
+    const scopes = translatePersonaToScopes(persona, product);
+
+    // Generate tokens with translated scopes
     const tokenPayload = {
       profileId: result.profileId,
       displayName: result.profile.displayName,
@@ -62,6 +74,7 @@ export async function POST(request: NextRequest) {
       userId: result.userId,
       clientId,
       accountId: `account_${result.userId}`, // Per OIDC spec v1.3: account_id as metadata
+      scopes, // Translated scopes from persona
     };
 
     const idToken = await generateIdToken(tokenPayload);
