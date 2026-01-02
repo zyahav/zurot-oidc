@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   SignedIn,
@@ -27,6 +27,7 @@ function AuthorizePageContent() {
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const silentRefreshAttempted = useRef(false);
 
   // OAuth parameters
   const clientId = searchParams.get("client_id");
@@ -34,27 +35,31 @@ function AuthorizePageContent() {
   const responseType = searchParams.get("response_type");
   const state = searchParams.get("state");
   const profileHint = searchParams.get("profile_hint");
+  const prompt = searchParams.get("prompt");
 
-  // Validate OAuth parameters
-  useEffect(() => {
-    if (!clientId || !redirectUri || responseType !== "code") {
-      setError("Invalid OAuth request. Missing required parameters.");
+  // Check if this is a silent refresh request
+  const isSilentRefresh = prompt === "none";
+
+  // Helper to redirect with error (OIDC-compliant)
+  const redirectWithError = useCallback((errorCode: string, errorDescription: string) => {
+    if (!redirectUri || !state) {
+      setError(`${errorCode}: ${errorDescription}`);
+      return;
     }
-  }, [clientId, redirectUri, responseType]);
+    const redirectUrl = new URL(redirectUri);
+    redirectUrl.searchParams.set("error", errorCode);
+    redirectUrl.searchParams.set("error_description", errorDescription);
+    redirectUrl.searchParams.set("state", state);
+    window.location.href = redirectUrl.toString();
+  }, [redirectUri, state]);
 
-  // Auto-select profile if profile_hint is valid
-  useEffect(() => {
-    if (profileHint && profiles && isSignedIn) {
-      const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
-      if (hintedProfile && hintedProfile.status === "active") {
-        selectProfile(hintedProfile._id);
-      }
-    }
-  }, [profileHint, profiles, isSignedIn]);
-
-  const selectProfile = async (profileId: string) => {
+  const selectProfile = useCallback(async (profileId: string) => {
     if (!clientId || !redirectUri || !state) {
-      setError("Missing OAuth parameters");
+      if (isSilentRefresh) {
+        redirectWithError("invalid_request", "Missing OAuth parameters");
+      } else {
+        setError("Missing OAuth parameters");
+      }
       return;
     }
 
@@ -79,15 +84,96 @@ function AuthorizePageContent() {
       redirectUrl.searchParams.set("state", state);
       window.location.href = redirectUrl.toString();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authorization failed");
-      setIsSubmitting(false);
+      const errorMsg = err instanceof Error ? err.message : "Authorization failed";
+      if (isSilentRefresh) {
+        redirectWithError("server_error", errorMsg);
+      } else {
+        setError(errorMsg);
+        setIsSubmitting(false);
+      }
     }
-  };
+  }, [clientId, redirectUri, state, isSilentRefresh, redirectWithError]);
+
+  // Validate OAuth parameters
+  useEffect(() => {
+    if (!clientId || !redirectUri || responseType !== "code") {
+      if (isSilentRefresh && redirectUri && state) {
+        redirectWithError("invalid_request", "Missing required parameters");
+      } else {
+        setError("Invalid OAuth request. Missing required parameters.");
+      }
+    }
+  }, [clientId, redirectUri, responseType, isSilentRefresh, redirectWithError, state]);
+
+  // Handle silent refresh (prompt=none)
+  useEffect(() => {
+    if (!isSilentRefresh || !isLoaded || silentRefreshAttempted.current) return;
+    
+    silentRefreshAttempted.current = true;
+
+    // For silent refresh: if not signed in, return login_required error
+    if (!isSignedIn) {
+      redirectWithError("login_required", "User is not authenticated");
+      return;
+    }
+
+    // Wait for profiles to load
+    if (profiles === undefined) return;
+
+    // If no profiles, return interaction_required
+    if (!profiles || profiles.length === 0) {
+      redirectWithError("interaction_required", "No profiles available");
+      return;
+    }
+
+    // If profile_hint is provided, try to use that profile
+    if (profileHint) {
+      const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
+      if (hintedProfile && hintedProfile.status === "active") {
+        selectProfile(hintedProfile._id);
+        return;
+      } else {
+        // Profile hint invalid, return interaction_required
+        redirectWithError("interaction_required", "Specified profile not available");
+        return;
+      }
+    }
+
+    // No profile_hint: if only one active profile, auto-select it
+    const activeProfiles = profiles.filter((p: Profile) => p.status === "active");
+    if (activeProfiles.length === 1) {
+      selectProfile(activeProfiles[0]._id);
+      return;
+    }
+
+    // Multiple profiles and no hint: user interaction required
+    redirectWithError("interaction_required", "Multiple profiles available, user must select");
+  }, [isSilentRefresh, isLoaded, isSignedIn, profiles, profileHint, selectProfile, redirectWithError]);
+
+  // Auto-select profile if profile_hint is valid (non-silent mode)
+  useEffect(() => {
+    if (isSilentRefresh) return; // Handled above
+    if (profileHint && profiles && isSignedIn) {
+      const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
+      if (hintedProfile && hintedProfile.status === "active") {
+        selectProfile(hintedProfile._id);
+      }
+    }
+  }, [profileHint, profiles, isSignedIn, isSilentRefresh, selectProfile]);
 
   if (!isLoaded) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-900">
         <div className="text-white">Loading...</div>
+      </main>
+    );
+  }
+
+  // For silent refresh, show minimal loading UI while processing
+  if (isSilentRefresh && !error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-900">
+        <div className="text-white text-sm">Processing...</div>
       </main>
     );
   }
