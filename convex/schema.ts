@@ -12,6 +12,7 @@ export default defineSchema({
 
   profiles: defineTable({
     userId: v.id("users"),
+    accountId: v.optional(v.string()), // Legacy - kept for backwards compat
     handle: v.string(),
     displayName: v.string(),
     role: v.string(),
@@ -60,7 +61,7 @@ export default defineSchema({
     consumed: v.boolean(),
     // PKCE support
     codeChallenge: v.optional(v.string()),
-    codeChallengeMethod: v.optional(v.string()), // "S256" or "plain"
+    codeChallengeMethod: v.optional(v.string()),
   }).index("by_code", ["code"]),
 
   oauthClients: defineTable({

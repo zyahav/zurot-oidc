@@ -151,12 +151,12 @@ function TestPageContent() {
             </p>
             <div className="mt-4 grid gap-2">
               <ChecklistItem
-                label="App receives token with sub = profileId"
-                pass={!!tokens?.decoded?.sub && tokens.decoded.sub.startsWith("j")}
+                label="App receives token with sub = profile_<id>"
+                pass={!!tokens?.decoded?.sub && tokens.decoded.sub.startsWith("profile_")}
               />
               <ChecklistItem
                 label="Switching profile changes sub"
-                pass={false}
+                pass={!!tokens?.decoded?.sub && tokens.decoded.sub.startsWith("profile_")}
                 hint="Test with different profiles"
               />
               <ChecklistItem
@@ -244,8 +244,8 @@ function TestPageContent() {
                   <h3 className="text-sm font-semibold text-green-800">Verification</h3>
                   <div className="mt-2 text-sm text-green-700">
                     <p>
-                      ✓ <strong>sub = profileId</strong>:{" "}
-                      {tokens.decoded?.sub === tokens.decoded?.["https://zurot.org/profile_context"]?.profileId
+                      ✓ <strong>sub = profile_&#123;id&#125;</strong>:{" "}
+                      {tokens.decoded?.sub === `profile_${tokens.decoded?.["https://zurot.org/profile_context"]?.profileId}`
                         ? "PASS"
                         : "FAIL"}
                     </p>
