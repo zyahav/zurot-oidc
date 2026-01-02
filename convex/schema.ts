@@ -58,6 +58,9 @@ export default defineSchema({
     redirectUri: v.string(),
     expiresAt: v.number(),
     consumed: v.boolean(),
+    // PKCE support
+    codeChallenge: v.optional(v.string()),
+    codeChallengeMethod: v.optional(v.string()), // "S256" or "plain"
   }).index("by_code", ["code"]),
 
   oauthClients: defineTable({
