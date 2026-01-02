@@ -17,11 +17,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profileId, clientId, redirectUri, state } = body;
+    const { profileId, clientId, redirectUri, state, code_challenge, code_challenge_method } = body;
 
     if (!profileId || !clientId || !redirectUri || !state) {
       return NextResponse.json(
         { error: "Missing required parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Validate PKCE code_challenge_method if provided
+    if (code_challenge_method && code_challenge_method !== "S256" && code_challenge_method !== "plain") {
+      return NextResponse.json(
+        { error: "invalid_request", error_description: "Unsupported code_challenge_method. Use S256 or plain." },
         { status: 400 }
       );
     }
@@ -55,13 +63,15 @@ export async function POST(request: NextRequest) {
     // Generate secure authorization code
     const code = crypto.randomBytes(32).toString("base64url");
 
-    // Store authorization code
+    // Store authorization code with PKCE params
     await convexServer.mutation(api.oauth.storeAuthorizationCode, {
       code,
       profileId: profileId as Id<"profiles">,
       clientId,
       redirectUri,
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      codeChallenge: code_challenge,
+      codeChallengeMethod: code_challenge_method,
     });
 
     return NextResponse.json({

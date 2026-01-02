@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
     let code: string | null = null;
     let clientId: string | null = null;
     let redirectUri: string | null = null;
+    let codeVerifier: string | null = null;
 
     // Parse body based on content type
     if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -19,12 +20,14 @@ export async function POST(request: NextRequest) {
       code = params.get("code");
       clientId = params.get("client_id");
       redirectUri = params.get("redirect_uri");
+      codeVerifier = params.get("code_verifier");
     } else {
       const body = await request.json();
       grantType = body.grant_type;
       code = body.code;
       clientId = body.client_id;
       redirectUri = body.redirect_uri;
+      codeVerifier = body.code_verifier;
     }
 
     // Validate grant type
@@ -42,11 +45,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Consume authorization code and get profile
+    // Consume authorization code and get profile (with PKCE verification)
     const result = await convexServer.mutation(api.oauth.consumeAuthorizationCode, {
       code,
       clientId,
       redirectUri,
+      codeVerifier: codeVerifier || undefined,
     });
 
     // Generate tokens
