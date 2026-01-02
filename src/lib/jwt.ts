@@ -72,6 +72,7 @@ export interface TokenPayload {
   userId: string;
   clientId: string;
   accountId: string; // Required per OIDC spec v1.3
+  scopes?: string[]; // Optional scopes array, format: ["product:permission"]
 }
 
 export async function generateIdToken(payload: TokenPayload): Promise<string> {
@@ -84,6 +85,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
     name: payload.displayName,
     preferred_username: payload.handle,
     account_id: payload.accountId, // Required per OIDC spec v1.3
+    scopes: payload.scopes || [], // Scopes array, format: ["product:permission"]
     "https://zurot.org/profile_context": {
       profileId: payload.profileId,
       userId: payload.userId,
@@ -109,6 +111,7 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
 
   const token = await new jose.SignJWT({
     scope: "openid profile",
+    scopes: payload.scopes || [], // Scopes array, format: ["product:permission"]
     account_id: payload.accountId, // Required per OIDC spec v1.3
     "https://zurot.org/profile_context": {
       profileId: payload.profileId,
@@ -178,6 +181,7 @@ export function getOpenIDConfiguration(baseUrl: string) {
       "preferred_username",
       "picture",
       "account_id",
+      "scopes",
       "https://zurot.org/profile_context",
     ],
   };
