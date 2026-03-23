@@ -17,17 +17,6 @@ function verifyPkceChallenge(
   // S256: BASE64URL(SHA256(code_verifier))
   // Note: In Convex, we need to use a pure JS implementation
   // since crypto module isn't available
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  
-  // Simple SHA256 implementation for Convex runtime
-  // We'll use SubtleCrypto which is available in Convex
-  // But since this is sync, we need to compare differently
-  // For now, use a base64url comparison approach
-  
-  // Actually, Convex supports crypto.subtle, but it's async
-  // We'll need to handle this in the mutation
-  // For simplicity, let's do a sync SHA256
   const hash = sha256(verifier);
   const computed = base64UrlEncode(hash);
   return computed === challenge;
@@ -53,7 +42,7 @@ function sha256(message: string): Uint8Array {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
   ]);
 
-  let H = new Uint32Array([
+  const H = new Uint32Array([
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
   ]);

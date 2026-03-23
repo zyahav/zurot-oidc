@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -285,9 +286,9 @@ function TestPageContent() {
             ) : (
               <p className="mt-2 text-sm text-zinc-600">
                 No active profile. Go to{" "}
-                <a href="/" className="text-blue-600 underline">
+                <Link href="/" className="text-blue-600 underline">
                   home page
-                </a>{" "}
+                </Link>{" "}
                 to select one.
               </p>
             )}

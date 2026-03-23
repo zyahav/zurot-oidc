@@ -25,7 +25,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const profileId = payload.sub as string;
+    const profileContext = payload["https://zurot.org/profile_context"] as
+      | { profileId?: string }
+      | undefined;
+    const profileId = profileContext?.profileId;
+    const subject = payload.sub as string | undefined;
+
+    if (!profileId || !subject) {
+      return NextResponse.json(
+        { error: "invalid_token" },
+        { status: 401 }
+      );
+    }
 
     // Get fresh profile data from Convex
     const profile = await convexServer.query(api.oauth.getProfileForToken, {
@@ -42,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Return userinfo response
     return NextResponse.json(
       {
-        sub: profileId,
+        sub: subject,
         name: profile.displayName,
         preferred_username: profile.handle,
         picture: profile.avatarUrl,

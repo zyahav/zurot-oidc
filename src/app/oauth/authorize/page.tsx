@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   SignedIn,
   SignedOut,
@@ -216,7 +217,7 @@ function AuthorizePageContent() {
       <SignedIn>
         <div className="w-full max-w-2xl">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-white">Who's using ZurOt?</h1>
+            <h1 className="text-3xl font-bold text-white">Who&apos;s using ZurOt?</h1>
             <p className="mt-2 text-sm text-zinc-400">
               Select a profile to continue to <span className="font-mono text-zinc-300">{clientId}</span>
             </p>
@@ -247,7 +248,7 @@ function AuthorizePageContent() {
               <p className="text-zinc-400">No profiles found.</p>
               <p className="mt-2 text-sm text-zinc-500">
                 Create a profile first at{" "}
-                <a href="/" className="text-blue-400 underline">zurot.org</a>
+                <Link href="/" className="text-blue-400 underline">zurot.org</Link>
               </p>
             </div>
           )}

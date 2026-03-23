@@ -14,7 +14,11 @@ let publicKeyJWK: jose.JWK | null = null;
 // Key ID for JWKS - should be rotated when keys change
 const KEY_ID = "zurot-rs256-key-1";
 
-const ISSUER = process.env.NEXT_PUBLIC_APP_URL || "https://zurot.org";
+export const ISSUER =
+  process.env.ISSUER ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://zurot.org");
 
 /**
  * Initialize RSA keys from environment variables or generate dev keys
