@@ -29,6 +29,13 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      ISSUER: ${{ secrets.ISSUER }}
+      RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
+      RSA_PUBLIC_KEY: ${{ secrets.RSA_PUBLIC_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +48,23 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate required build secrets
+        run: |
+          required=(
+            "NEXT_PUBLIC_CONVEX_URL"
+            "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+            "CLERK_SECRET_KEY"
+            "ISSUER"
+            "RSA_PRIVATE_KEY"
+            "RSA_PUBLIC_KEY"
+          )
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "Missing required secret: $key"
+              exit 1
+            fi
+          done
 
       - name: Run build
         run: npm run build
