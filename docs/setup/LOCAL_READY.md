@@ -16,7 +16,7 @@ Expected: version line like `git version 2.x.x`.
 ```bash
 node --version
 ```
-Expected: `v20.x.x`.
+Expected: `v20` or higher.
 
 3. npm:
 ```bash
