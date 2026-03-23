@@ -7,7 +7,19 @@ If there is any conflict between documents, this index defines the resolution or
 
 ---
 
-## 1. Document Roles (Non-Negotiable)
+## 1. Current Working Mode (Baseline-First)
+
+Current development is **baseline-first on `main`**.
+
+- Active implementation contract is defined in `BASELINE.md`
+- New work starts from fresh feature branches off `main`
+- Merge back to `main` only after baseline gates pass (`lint`, `build`, smoke checks)
+
+This replaces old harness-first execution as the default day-to-day workflow.
+
+---
+
+## 2. Document Roles (Non-Negotiable)
 
 Each document in this repository has a **specific role**. Documents must not be used outside their role.
 
@@ -79,22 +91,27 @@ Execution before Phase 0 completion is invalid.
 
 ---
 
-## 2. Execution Order (Mandatory)
+## 3. Authority and Execution Order (Mandatory)
 
-Execution MUST follow this order:
+When defining implementation behavior, follow this authority order:
 
-1. Read `identity-federation-core.md` (constraints)
-2. Read `phase-0-hub-profile-authority.md` (scope)
-3. Execute `convex-identity-code-pack.md`
-4. Verify Phase 0 pass/fail
-5. Only if PASS → execute `oidc-provider-implementation-pack.md`
-6. Only after Phase 1 → build federated apps
+1. `docs/architecture/identity-federation-core.md` (immutable constraints)
+2. `BASELINE.md` (active implementation contract on `main`)
+3. Implementation guides and packs under `docs/implementation/`
+4. Integration guide under `docs/integration/`
 
-Skipping steps is not allowed.
+If any legacy document conflicts with the current baseline contract, update the legacy document; do not silently diverge in code.
+
+Execution sequencing remains:
+
+1. Respect architecture constraints
+2. Implement and verify against `BASELINE.md`
+3. Deliver features in small branches from `main`
+4. Promote back to `main` only with passing gates
 
 ---
 
-## 3. Phase Gating Rules
+## 4. Phase Gating Rules
 
 - Phase 0 must PASS before Phase 1
 - Phase 1 must PASS before any app integration
@@ -104,7 +121,7 @@ Harnesses must enforce gating strictly.
 
 ---
 
-## 4. Modification Rules
+## 5. Modification Rules
 
 - Architecture docs are frozen
 - Code packs change only through explicit revision
@@ -114,7 +131,7 @@ Unauthorized modification is considered a failure.
 
 ---
 
-## 5. Final Authority Statement
+## 6. Final Authority Statement
 
 This INDEX file is authoritative for:
 - Document usage
@@ -126,4 +143,3 @@ If uncertainty exists, follow this file literally.
 ---
 
 End of Index.
-
