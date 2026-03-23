@@ -12,6 +12,10 @@ If there is any conflict between documents, this index defines the resolution or
 Current development is **baseline-first on `main`**.
 
 - Active implementation contract is defined in `BASELINE.md`
+- Delivery process is defined in `WORKFLOW.md`
+- Flat task tracking is in `TASKS.md`
+- Test audit trail is in `TEST_ATTESTATION.md`
+- Session handoff state is in `SESSION_STATE.md`
 - New work starts from fresh feature branches off `main`
 - Merge back to `main` only after baseline gates pass (`lint`, `build`, smoke checks)
 
