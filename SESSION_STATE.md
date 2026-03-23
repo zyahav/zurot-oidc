@@ -3,7 +3,8 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Baseline commit: `fc2ada5`
+- Current HEAD commit: `a9ddab4`
+- Baseline stabilization commit: `fc2ada5`
 - Docs alignment commit: `374115e`
 - Working tree at last check: clean
 
@@ -27,4 +28,3 @@
 - Confirm active task row in `TASKS.md`
 - Confirm attestation entry is prepared in `TEST_ATTESTATION.md`
 - Start implementation only after those checks
-
