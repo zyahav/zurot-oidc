@@ -27,6 +27,13 @@ Use full PEM values for RSA keys.
 npm run dev
 ```
 
+Open browser:
+- Go to `http://localhost:3000/`
+- Confirm app root loads (not blank/error page).
+
+Terminal check:
+- Confirm there are no Convex connection errors in terminal output.
+
 ## 4. Verify OIDC Discovery
 
 ```bash

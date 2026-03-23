@@ -4,14 +4,40 @@ Complete each check before handling secrets.
 
 ## 1. Prerequisites
 
-- Git installed
-- Node.js 20.x installed
-- npm installed
-- OpenSSL installed
-- Access to BitWarden vault containing ZurOt items
-- Access to Clerk dashboard
-- Access to Convex dashboard
-- Access to GitHub repository settings
+Run each command and verify expected output before continuing.
+
+1. Git:
+```bash
+git --version
+```
+Expected: version line like `git version 2.x.x`.
+
+2. Node.js:
+```bash
+node --version
+```
+Expected: `v20.x.x`.
+
+3. npm:
+```bash
+npm --version
+```
+Expected: numeric version (for example `10.x.x`).
+
+4. OpenSSL:
+```bash
+openssl version
+```
+Expected: line containing `OpenSSL`.
+
+5. BitWarden access:
+- Sign in to BitWarden web app or desktop app.
+- Confirm you can create/view items in the team vault.
+
+6. Service access:
+- Clerk dashboard access confirmed.
+- Convex dashboard access confirmed.
+- GitHub repository settings access confirmed.
 
 ## 2. Repository
 
@@ -21,6 +47,7 @@ Complete each check before handling secrets.
 ```bash
 npm ci
 ```
+Expected: install finishes without fatal errors.
 
 ## 3. Baseline Validation
 
@@ -29,6 +56,9 @@ Run local checks once before configuring secrets:
 npm run lint
 npm run build
 ```
+Expected:
+- `lint`: no errors (warnings are acceptable per current baseline).
+- `build`: completes successfully.
 
 If build fails due to missing env vars, continue to `SECRETS_BOOTSTRAP.md`.
 

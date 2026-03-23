@@ -9,7 +9,24 @@
 
 ## 1. BitWarden Source of Truth
 
-Create or update these BitWarden items:
+Create or update these BitWarden items.
+
+BitWarden creation steps:
+1. Click `New item`.
+2. Item type: `Login`.
+3. Name it exactly as required below.
+4. Add custom fields for secrets.
+5. Save item.
+
+Field type guidance:
+1. Use `Text` for:
+- `NEXT_PUBLIC_CONVEX_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `ISSUER`
+2. Use `Hidden` for:
+- `CLERK_SECRET_KEY`
+- `RSA_PRIVATE_KEY`
+- `RSA_PUBLIC_KEY`
 
 - `zurot-oidc / dev`
 - `zurot-oidc / github-actions`
@@ -30,6 +47,9 @@ Both items must include the same field names:
 Source:
 - Convex dashboard -> project settings -> deployment URL
 
+Important:
+- Copy the Convex Cloud URL (`https://...convex.cloud`), not the HTTP Actions URL.
+
 Store value in BitWarden fields for both items.
 
 ### 2.2 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -37,12 +57,18 @@ Store value in BitWarden fields for both items.
 Source:
 - Clerk dashboard -> API Keys -> Publishable key
 
+Important:
+- Use the environment dropdown in Clerk and switch to the Development instance before copying keys.
+
 Store value in BitWarden fields for both items.
 
 ### 2.3 CLERK_SECRET_KEY
 
 Source:
 - Clerk dashboard -> API Keys -> Secret key
+
+Important:
+- Use the Development instance in Clerk (same environment as publishable key).
 
 Store value in BitWarden fields for both items.
 
@@ -66,6 +92,16 @@ openssl rsa -pubout -in private.pem -out public.pem
 ```
 
 Copy full PEM content (including BEGIN/END lines) into BitWarden.
+
+Before deleting any generated files:
+1. Open both BitWarden items.
+2. Confirm `RSA_PRIVATE_KEY` and `RSA_PUBLIC_KEY` fields are present and saved.
+3. Re-open item to verify persistence.
+
+After successful verification, delete temporary key files:
+```bash
+rm -f private.pem public.pem
+```
 
 ## 3. STOP Checkpoint (Before Local Use)
 
