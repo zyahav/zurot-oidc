@@ -121,3 +121,15 @@ The edit flow in `/internal`:
 - Role is not editable
 - Edit UI is in `/internal` only — homepage shell is unchanged
 - Lint passes, build passes, smoke tests pass
+
+---
+
+## Convex optional field semantics (implementation note)
+
+In Convex, optional fields (`v.optional(v.string())`) are cleared by passing `undefined`, not `null`. Passing `null` is a type error in Convex.
+
+This means:
+- General API design principle: `null = explicitly cleared`
+- Convex runtime reality: `undefined = clear optional field`
+
+The implementation correctly uses `undefined` to clear `avatarUrl`. This is an intentional, documented deviation from general API convention. Do not change this to `null` — it will break the Convex mutation.

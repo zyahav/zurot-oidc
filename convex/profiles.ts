@@ -54,6 +54,48 @@ export const archiveProfile = mutation({
   },
 });
 
+export const editProfile = mutation({
+  args: {
+    profileId: v.id("profiles"),
+    displayName: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getUserForIdentity(ctx);
+
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile || profile.userId !== user._id) {
+      throw new Error("Profile not found or not owned by current user");
+    }
+    if (profile.status === "archived") {
+      throw new Error("Cannot edit an archived profile");
+    }
+
+    const updates: { displayName?: string; avatarUrl?: string | undefined } = {};
+
+    if (args.displayName !== undefined) {
+      const nextDisplayName = args.displayName.trim();
+      if (nextDisplayName.length === 0) {
+        throw new Error("Display name cannot be empty");
+      }
+      if (nextDisplayName.length > 64) {
+        throw new Error("Display name must be 64 characters or fewer");
+      }
+      updates.displayName = nextDisplayName;
+    }
+
+    if (args.avatarUrl !== undefined) {
+      const nextAvatarUrl = args.avatarUrl.trim();
+      if (nextAvatarUrl !== "" && !/^https?:\/\//.test(nextAvatarUrl)) {
+        throw new Error("Avatar URL must start with http:// or https://");
+      }
+      updates.avatarUrl = nextAvatarUrl === "" ? undefined : nextAvatarUrl;
+    }
+
+    await ctx.db.patch(args.profileId, updates);
+  },
+});
+
 export const listProfilesForUser = query({
   args: {},
   handler: async (ctx) => {

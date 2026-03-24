@@ -128,3 +128,37 @@ Use this file as a strict audit log for each task.
 - Fix commit(s): `ec59f2d`.
 - Final result: `PASS`
 - Reviewer approval: advisor + PM verified implementation and approved merge.
+
+---
+
+## Prepared Entry
+
+- Task ID: `T-004`
+- Date: `2026-03-24`
+- Branch: `codex/profile-edit`
+- Commit SHA: `TBD`
+- Spec References: `BASELINE.md`, `docs/implementation/t-004-profile-edit-spec.md`
+- Scope: Add profile edit mutation and inline edit UI in `/internal`.
+
+### Required Automated Checks
+
+- [ ] `npm run lint`
+- [ ] `npm run build`
+
+### Required Smoke Checks (T-004 Profile Edit)
+
+- [ ] Edit button visible only for active profiles in `/internal`
+- [ ] Editing display name updates reactively
+- [ ] Editing avatar URL updates reactively
+- [ ] Empty display name is blocked (client + server)
+- [ ] Invalid avatar URL is blocked (client + server)
+- [ ] `make smoke-oidc` still passes
+
+### Results
+
+- Automated checks:
+- Smoke checks:
+- Failures found:
+- Fix commit(s):
+- Final result: `PASS` or `FAIL`
+- Reviewer approval:
