@@ -3,9 +3,9 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `a9ddab4`
+- Current HEAD commit: `c28573f`
+- T-001 merge commit: `c28573f`
 - Baseline stabilization commit: `fc2ada5`
-- Docs alignment commit: `374115e`
 - Working tree at last check: clean
 
 ## Current Process Mode
@@ -17,10 +17,10 @@
 
 ## Next Task
 
-- ID: `T-001`
-- Title: Set up CI/CD pipeline (lint + build on push/PR)
+- ID: `T-002`
+- Title: Add minimal smoke tests for OIDC contract
 - Status: `PLANNED`
-- Next action: create `codex/ci-cd-bootstrap` branch and implement workflow file(s) under `.github/workflows/`
+- Next action: create `codex/smoke-tests` branch and implement smoke checks for discovery, JWKS, token invalid request, and userinfo unauthorized.
 
 ## Resume Checklist (for new session)
 
