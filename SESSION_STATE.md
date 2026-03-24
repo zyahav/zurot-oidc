@@ -3,10 +3,11 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `66c9017`
+- Current HEAD commit: `1c65500`
 - T-001 merge commit: `c28573f`
 - T-002 merge commit: `61c9101`
 - T-003 merge commit: `66c9017`
+- T-004 merge commit: `1c65500`
 - Baseline stabilization commit: `fc2ada5`
 - Working tree at last check: clean
 
@@ -19,10 +20,10 @@
 
 ## Next Task
 
-- ID: `T-004`
-- Title: Implement profile edit (mutation + UI)
+- ID: `T-005`
+- Title: Implement logout/session strategy for federation
 - Status: `PLANNED`
-- Next action: create `codex/profile-edit` branch from `main`, prepare T-004 attestation entry, then implement profile edit flow per task spec.
+- Next action: run infra consultation for logout/session design, then branch `codex/logout-strategy` from `main` and prepare T-005 attestation entry before implementation.
 
 ## Resume Checklist (for new session)
 

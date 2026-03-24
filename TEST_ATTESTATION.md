@@ -131,34 +131,34 @@ Use this file as a strict audit log for each task.
 
 ---
 
-## Prepared Entry
+## Completed Entry
 
 - Task ID: `T-004`
 - Date: `2026-03-24`
 - Branch: `codex/profile-edit`
-- Commit SHA: `TBD`
+- Commit SHA: `1c65500` (merged to `main`)
 - Spec References: `BASELINE.md`, `docs/implementation/t-004-profile-edit-spec.md`
 - Scope: Add profile edit mutation and inline edit UI in `/internal`.
 
 ### Required Automated Checks
 
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [x] `npm run lint`
+- [x] `npm run build`
 
 ### Required Smoke Checks (T-004 Profile Edit)
 
-- [ ] Edit button visible only for active profiles in `/internal`
-- [ ] Editing display name updates reactively
-- [ ] Editing avatar URL updates reactively
-- [ ] Empty display name is blocked (client + server)
-- [ ] Invalid avatar URL is blocked (client + server)
-- [ ] `make smoke-oidc` still passes
+- [x] Edit button visible only for active profiles in `/internal`
+- [x] Editing display name updates reactively
+- [x] Editing avatar URL updates reactively
+- [x] Empty display name is blocked (client + server)
+- [x] Invalid avatar URL is blocked (client + server)
+- [x] `make smoke-oidc` still passes
 
 ### Results
 
-- Automated checks:
-- Smoke checks:
-- Failures found:
-- Fix commit(s):
-- Final result: `PASS` or `FAIL`
-- Reviewer approval:
+- Automated checks: PR #14 CI run `23507259902` passed (`lint` and `build` green).
+- Smoke checks: local `make quality` passed, including profile edit behavior in `/internal` and baseline OIDC smoke checks.
+- Failures found: none at merge closeout.
+- Fix commit(s): `4871b4e`, `2ace254`, `e9192ed`.
+- Final result: `PASS`
+- Reviewer approval: PM + advisor approved closeout after CI green.
