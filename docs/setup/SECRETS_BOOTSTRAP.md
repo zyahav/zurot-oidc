@@ -21,8 +21,10 @@ BitWarden creation steps:
 Field type guidance:
 1. Use `Text` for:
 - `NEXT_PUBLIC_CONVEX_URL`
+- `CONVEX_DEPLOYMENT`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `ISSUER`
+- `NEXT_PUBLIC_APP_URL`
 2. Use `Hidden` for:
 - `CLERK_SECRET_KEY`
 - `RSA_PRIVATE_KEY`
@@ -34,9 +36,11 @@ Field type guidance:
 Both items must include the same field names:
 
 - `NEXT_PUBLIC_CONVEX_URL`
+- `CONVEX_DEPLOYMENT`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `ISSUER`
+- `NEXT_PUBLIC_APP_URL`
 - `RSA_PRIVATE_KEY`
 - `RSA_PUBLIC_KEY`
 
@@ -52,7 +56,17 @@ Important:
 
 Store value in BitWarden fields for both items.
 
-### 2.2 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+### 2.2 CONVEX_DEPLOYMENT
+
+Source:
+- Convex dashboard top bar / environment selector
+
+Format:
+- `dev:deployment-name`
+
+Store value in BitWarden fields for both items.
+
+### 2.3 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 Source:
 - Clerk dashboard -> API Keys -> Publishable key
@@ -62,7 +76,7 @@ Important:
 
 Store value in BitWarden fields for both items.
 
-### 2.3 CLERK_SECRET_KEY
+### 2.4 CLERK_SECRET_KEY
 
 Source:
 - Clerk dashboard -> API Keys -> Secret key
@@ -72,7 +86,7 @@ Important:
 
 Store value in BitWarden fields for both items.
 
-### 2.4 ISSUER
+### 2.5 ISSUER
 
 Set value based on environment:
 
@@ -81,7 +95,14 @@ Set value based on environment:
 
 Store value in BitWarden fields for both items.
 
-### 2.5 RSA_PRIVATE_KEY and RSA_PUBLIC_KEY
+### 2.6 NEXT_PUBLIC_APP_URL
+
+Set value based on local environment:
+- `http://localhost:3000`
+
+Store value in BitWarden fields for both items.
+
+### 2.7 RSA_PRIVATE_KEY and RSA_PUBLIC_KEY
 
 If keys already exist in team custody, reuse them.
 
@@ -105,13 +126,13 @@ rm -f private.pem public.pem
 
 ## 3. STOP Checkpoint (Before Local Use)
 
-Confirm all six fields exist in `zurot-oidc / dev`.
+Confirm all eight fields exist in `zurot-oidc / dev`.
 
 If any field is missing, STOP and complete BitWarden entries first.
 
 ## 4. STOP Checkpoint (Before CI Use)
 
-Confirm all six fields exist in `zurot-oidc / github-actions`.
+Confirm all eight fields exist in `zurot-oidc / github-actions`.
 
 If any field is missing, STOP and complete BitWarden entries first.
 
@@ -123,9 +144,11 @@ GitHub path:
 Create repository secrets with exact names:
 
 - `NEXT_PUBLIC_CONVEX_URL`
+- `CONVEX_DEPLOYMENT`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `ISSUER`
+- `NEXT_PUBLIC_APP_URL`
 - `RSA_PRIVATE_KEY`
 - `RSA_PUBLIC_KEY`
 

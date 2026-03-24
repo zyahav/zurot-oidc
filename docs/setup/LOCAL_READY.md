@@ -65,9 +65,11 @@ If build fails due to missing env vars, continue to `SECRETS_BOOTSTRAP.md`.
 ## 4. Required Secret Names (Reference)
 
 - `NEXT_PUBLIC_CONVEX_URL`
+- `CONVEX_DEPLOYMENT`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `ISSUER`
+- `NEXT_PUBLIC_APP_URL`
 - `RSA_PRIVATE_KEY`
 - `RSA_PUBLIC_KEY`
 
