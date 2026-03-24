@@ -95,3 +95,36 @@ Use this file as a strict audit log for each task.
 - Fix commit(s): `6b36937`, `61d9578`.
 - Final result: `PASS`
 - Reviewer approval: PM + advisor verified; PR #12 CI green and merged.
+
+---
+
+## Prepared Entry
+
+- Task ID: `T-003`
+- Date: `2026-03-24`
+- Branch: `codex/homepage`
+- Commit SHA: `TBD`
+- Spec References: `BASELINE.md`, `docs/implementation/t-003-homepage-spec.md`
+- Scope: Replace homepage with 3-state identity shell and move harness to `/internal`.
+
+### Required Automated Checks
+
+- [ ] `npm run lint`
+- [ ] `npm run build`
+
+### Required Smoke Checks (T-003 Homepage)
+
+- [ ] Signed out renders State 1 (login-only shell)
+- [ ] Signed in + no active profile renders State 2 (profile picker)
+- [ ] Selecting a profile transitions State 2 → State 3
+- [ ] Switch profile transitions State 3 → State 2
+- [ ] `/internal` route still renders harness
+
+### Results
+
+- Automated checks:
+- Smoke checks:
+- Failures found:
+- Fix commit(s):
+- Final result: `PASS` or `FAIL`
+- Reviewer approval:
