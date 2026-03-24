@@ -148,3 +148,13 @@ On logout, the system must:
 - Render the homepage in State 1 (signed out)
 
 No client-side cached state should persist after logout. The homepage derives its state fresh from Clerk and Convex on every render — it does not remember previous state.
+
+---
+
+## User sync behavior (Phase 0)
+
+- `upsertUserFromClerk` is best-effort and must never block UI rendering
+- Failures must not prevent access to the app
+- Users must never be locked out due to sync errors
+- System recovers on the next successful request automatically — no manual retry UI needed
+- Sync errors do not affect authentication state (Clerk) or profile state (Convex)
