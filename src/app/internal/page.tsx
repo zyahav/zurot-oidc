@@ -17,6 +17,7 @@ type Profile = {
   _id: Id<"profiles">;
   handle: string;
   displayName: string;
+  avatarUrl?: string;
   role: string;
   status: string;
 };
@@ -62,6 +63,7 @@ const ProfileManager = () => {
   const activeProfile = useQuery(api.profiles.getActiveProfile, {});
   const createProfile = useMutation(api.profiles.createProfile);
   const archiveProfile = useMutation(api.profiles.archiveProfile);
+  const editProfile = useMutation(api.profiles.editProfile);
   const setActiveProfile = useMutation(api.profiles.setActiveProfile);
 
   const [handle, setHandle] = useState("");
@@ -69,6 +71,11 @@ const ProfileManager = () => {
   const [role, setRole] = useState("member");
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<Id<"profiles"> | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const profileList = useMemo(() => profiles ?? [], [profiles]);
   const currentActiveId = activeProfile?._id;
@@ -120,6 +127,55 @@ const ProfileManager = () => {
       setMessage("Profile archived");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to archive profile");
+    }
+  };
+
+  const startEdit = (profile: Profile) => {
+    setEditingProfileId(profile._id);
+    setEditDisplayName(profile.displayName);
+    setEditAvatarUrl(profile.avatarUrl ?? "");
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingProfileId(null);
+    setEditDisplayName("");
+    setEditAvatarUrl("");
+    setEditError(null);
+  };
+
+  const submitEdit = async (profileId: Id<"profiles">) => {
+    const nextDisplayName = editDisplayName.trim();
+    const nextAvatarUrl = editAvatarUrl.trim();
+
+    if (nextDisplayName.length === 0) {
+      setEditError("Display name cannot be empty");
+      return;
+    }
+    if (nextDisplayName.length > 64) {
+      setEditError("Display name must be 64 characters or fewer");
+      return;
+    }
+    if (nextAvatarUrl !== "" && !/^https?:\/\//.test(nextAvatarUrl)) {
+      setEditError("Avatar URL must start with http:// or https://");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError(null);
+    setMessage(null);
+    try {
+      await editProfile({
+        profileId,
+        displayName: nextDisplayName,
+        avatarUrl: nextAvatarUrl,
+      });
+      setMessage("Profile updated");
+      cancelEdit();
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Failed to update profile");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -240,6 +296,14 @@ const ProfileManager = () => {
                   >
                     {currentActiveId === profile._id ? "Active" : "Set active"}
                   </button>
+                  {profile.status === "active" && (
+                    <button
+                      className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700"
+                      onClick={() => startEdit(profile)}
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700 disabled:opacity-60"
                     onClick={() => archive(profile._id)}
@@ -250,6 +314,46 @@ const ProfileManager = () => {
                 </div>
               </div>
               <div className="mt-2 text-xs text-zinc-600">Status: {profile.status}</div>
+              {editingProfileId === profile._id && (
+                <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700">Display name</label>
+                      <input
+                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-black"
+                        value={editDisplayName}
+                        onChange={e => setEditDisplayName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700">Avatar URL (optional)</label>
+                      <input
+                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-black"
+                        value={editAvatarUrl}
+                        onChange={e => setEditAvatarUrl(e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    {editError && <p className="text-xs text-red-700">{editError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        className="rounded-md bg-black px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                        onClick={() => submitEdit(profile._id)}
+                        disabled={isSavingEdit}
+                      >
+                        {isSavingEdit ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700"
+                        onClick={cancelEdit}
+                        disabled={isSavingEdit}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
