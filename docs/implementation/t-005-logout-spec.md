@@ -127,3 +127,24 @@ No Convex changes. No schema changes. No homepage architecture changes.
 - Homepage smoke check passes (GET / returns 200) ✓
 - Internal page smoke check passes (GET /internal returns 200) ✓
 - Lint passes, build passes, all smoke tests pass ✓
+
+---
+
+## Logout availability rule (Phase 0)
+
+The user must be able to perform full logout from any authenticated UI state. This includes:
+- State 2 (profile picker)
+- State 3 (app launcher)
+
+Logout must not depend on having an active profile selected. This is a non-negotiable UX rule — a user must never be trapped in an authenticated state with no exit.
+
+---
+
+## Post-logout behavior contract
+
+On logout, the system must:
+- End the Clerk session
+- Clear all authenticated UI state
+- Render the homepage in State 1 (signed out)
+
+No client-side cached state should persist after logout. The homepage derives its state fresh from Clerk and Convex on every render — it does not remember previous state.
