@@ -162,3 +162,37 @@ Use this file as a strict audit log for each task.
 - Fix commit(s): `4871b4e`, `2ace254`, `e9192ed`.
 - Final result: `PASS`
 - Reviewer approval: PM + advisor approved closeout after CI green.
+
+---
+
+## Prepared Entry
+
+- Task ID: `T-005`
+- Date: `2026-03-24`
+- Branch: `codex/logout-strategy`
+- Commit SHA: `TBD`
+- Spec References: `BASELINE.md`, `docs/implementation/t-005-logout-spec.md`, `docs/implementation/t-005-logout-decisions.md`
+- Scope: Harden logout and profile-switch behavior, including State 2 logout access and smoke checks.
+
+### Required Automated Checks
+
+- [ ] `npm run lint`
+- [ ] `npm run build`
+
+### Required Smoke Checks (T-005 Logout Strategy)
+
+- [ ] `GET /` returns 200
+- [ ] `GET /internal` returns 200
+- [ ] `GET /.well-known/openid-configuration` returns canonical endpoints
+- [ ] `GET /.well-known/jwks.json` returns keys
+- [ ] `POST /api/oauth/token` invalid request returns expected error
+- [ ] `GET /api/oauth/userinfo` without bearer returns expected error
+
+### Results
+
+- Automated checks:
+- Smoke checks:
+- Failures found:
+- Fix commit(s):
+- Final result: `PASS` or `FAIL`
+- Reviewer approval:

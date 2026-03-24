@@ -92,6 +92,12 @@ function ProfilePickerState({
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white px-6 py-12">
       <div className="mx-auto w-full max-w-4xl">
+        <div className="flex justify-end">
+          {/* Logout must be available in every authenticated state, including State 2. */}
+          <SignOutButton>
+            <button className="text-sm font-medium text-zinc-700 underline">Sign out</button>
+          </SignOutButton>
+        </div>
         <h1 className="text-center text-3xl font-semibold text-zinc-900">Who&apos;s using ZurOt?</h1>
 
         {profiles.length === 0 ? (
@@ -202,6 +208,13 @@ export default function Home() {
   const clearActiveProfile = useMutation(api.profiles.clearActiveProfile);
 
   const [pendingProfile, setPendingProfile] = useState<Id<"profiles"> | null>(null);
+  const [dismissedSyncWarning, setDismissedSyncWarning] = useState(false);
+
+  useEffect(() => {
+    if (syncError) {
+      setDismissedSyncWarning(false);
+    }
+  }, [syncError]);
 
   const profileList = useMemo(() => profiles ?? [], [profiles]);
   const appList = useMemo(() => appsForProfile ?? [], [appsForProfile]);
@@ -216,8 +229,24 @@ export default function Home() {
   };
 
   const switchProfile = async () => {
+    // Profile switch keeps Clerk auth alive and only clears active profile context.
     await clearActiveProfile({});
   };
+
+  const syncWarning =
+    syncError && !dismissedSyncWarning ? (
+      <div className="fixed left-0 right-0 top-0 z-50 px-4 pt-3">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm">
+          <span>{syncError}</span>
+          <button
+            className="ml-3 rounded px-2 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+            onClick={() => setDismissedSyncWarning(true)}
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    ) : null;
 
   if (isSignedIn === undefined) {
     return (
@@ -231,39 +260,38 @@ export default function Home() {
     return <LoginState />;
   }
 
-  if (syncError) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6">
-        <div className="max-w-lg rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {syncError}
-        </div>
-      </main>
-    );
-  }
-
   if (activeProfile === undefined || profiles === undefined || appsForProfile === undefined) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm text-zinc-600">
-        Loading your workspace...
-      </main>
+      <>
+        {syncWarning}
+        <main className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm text-zinc-600">
+          Loading your workspace...
+        </main>
+      </>
     );
   }
 
   if (!activeProfile) {
     return (
-      <ProfilePickerState
-        profiles={profileList}
-        pendingProfile={pendingProfile}
-        onPick={pickProfile}
-      />
+      <>
+        {syncWarning}
+        <ProfilePickerState
+          profiles={profileList}
+          pendingProfile={pendingProfile}
+          onPick={pickProfile}
+        />
+      </>
     );
   }
 
   return (
-    <AppLauncherState
-      activeProfile={activeProfile as Profile}
-      apps={appList}
-      onSwitchProfile={switchProfile}
-    />
+    <>
+      {syncWarning}
+      <AppLauncherState
+        activeProfile={activeProfile as Profile}
+        apps={appList}
+        onSwitchProfile={switchProfile}
+      />
+    </>
   );
 }
