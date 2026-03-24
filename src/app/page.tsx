@@ -92,6 +92,12 @@ function ProfilePickerState({
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white px-6 py-12">
       <div className="mx-auto w-full max-w-4xl">
+        <div className="flex justify-end">
+          {/* Logout must be available in every authenticated state, including State 2. */}
+          <SignOutButton>
+            <button className="text-sm font-medium text-zinc-700 underline">Sign out</button>
+          </SignOutButton>
+        </div>
         <h1 className="text-center text-3xl font-semibold text-zinc-900">Who&apos;s using ZurOt?</h1>
 
         {profiles.length === 0 ? (
@@ -216,6 +222,7 @@ export default function Home() {
   };
 
   const switchProfile = async () => {
+    // Profile switch keeps Clerk auth alive and only clears active profile context.
     await clearActiveProfile({});
   };
 
