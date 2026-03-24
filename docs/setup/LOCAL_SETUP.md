@@ -23,7 +23,32 @@ From BitWarden item `zurot-oidc / dev`, copy values for:
 
 Use full PEM values for RSA keys.
 
-## 3. Start App
+## 3. STOP — Verify Before Continuing
+
+Confirm both:
+
+- `CONVEX_DEPLOYMENT` is set to your dev project (not prod)
+- You are ready to run `npx convex dev` in a separate terminal
+
+Do not continue if either check fails.
+
+## 4. Deploy Convex Functions (Mandatory)
+
+Open a terminal and run:
+
+```bash
+npx convex dev
+```
+
+What to do next:
+- Keep this terminal running (it stays in sync with your code)
+- Wait until you see `Convex functions ready` before continuing
+- Open a second terminal for Next.js app runtime
+
+Without this step the app may fail with errors like:
+- `Could not find public function ...`
+
+## 5. Start App
 
 ```bash
 npm run dev
@@ -36,7 +61,7 @@ Open browser:
 Terminal check:
 - Confirm there are no Convex connection errors in terminal output.
 
-## 4. Verify OIDC Discovery
+## 6. Verify OIDC Discovery
 
 ```bash
 curl -sS http://localhost:3000/.well-known/openid-configuration
@@ -50,14 +75,14 @@ Expected keys in JSON:
 - `userinfo_endpoint`
 - `jwks_uri`
 
-## 5. Run Local Quality Gates
+## 7. Run Local Quality Gates
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## 6. Done Criteria
+## 8. Done Criteria
 
 Local onboarding is done when:
 
