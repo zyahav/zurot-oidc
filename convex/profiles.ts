@@ -154,3 +154,61 @@ export const getActiveProfile = query({
     return profile;
   },
 });
+
+export const clearActiveProfile = mutation({
+  args: {},
+  handler: async ctx => {
+    const { user } = await getUserForIdentity(ctx);
+    const existing = await ctx.db
+      .query("activeProfiles")
+      .withIndex("by_user", q => q.eq("userId", user._id))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
+
+export const getAppsForActiveProfile = query({
+  args: {},
+  handler: async ctx => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", q => q.eq("clerkUserId", identity.subject))
+      .first();
+    if (!user) return [];
+
+    const active = await ctx.db
+      .query("activeProfiles")
+      .withIndex("by_user", q => q.eq("userId", user._id))
+      .first();
+    if (!active) return [];
+
+    const profile = await ctx.db.get(active.profileId);
+    if (!profile || profile.status !== "active") return [];
+
+    return [
+      {
+        id: "game",
+        name: "Game",
+        url: "https://game.zurot.org",
+        description: "Play",
+      },
+      {
+        id: "bbb",
+        name: "BBB",
+        url: "https://bbb.zurot.org",
+        description: "Learn",
+      },
+      {
+        id: "vibe",
+        name: "Vibe",
+        url: "https://vibe.zurot.org",
+        description: "Create",
+      },
+    ];
+  },
+});

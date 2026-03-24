@@ -49,6 +49,10 @@ npm run build
 - `GET /.well-known/openid-configuration`
 - `GET /.well-known/jwks.json`
 
+## Internal Route
+
+- `GET /internal` is the developer harness page for profile creation/management and phase checks.
+
 ## CI/CD Status
 
 - CI workflow lives at `.github/workflows/ci.yml`
