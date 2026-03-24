@@ -34,7 +34,7 @@ Use this file as a strict audit log for each task.
 
 ---
 
-## Current Prepared Entry
+## Completed Entry
 
 - Task ID: `T-001`
 - Date: `2026-03-24`
@@ -63,3 +63,21 @@ Use this file as a strict audit log for each task.
 - Fix commit(s): `cfd3d7c`, `a7f6bc3`, `c677f71`, `3d86842`, `60742e3`, `249d9ad`, `a209a78`, `9239d29`.
 - Final result: `PASS`
 - Reviewer approval: PM + advisor verified; live onboarding test passed.
+
+---
+
+## Current Prepared Entry
+
+- Task ID: `T-002`
+- Date: `2026-03-24`
+- Branch: `codex/smoke-tests` (planned)
+- Commit SHA: `TBD`
+- Spec References: `BASELINE.md`
+- Scope: Add minimal smoke tests for OIDC contract.
+
+### Required Smoke Checks (OIDC Baseline)
+
+- [ ] `GET /.well-known/openid-configuration`
+- [ ] `GET /.well-known/jwks.json`
+- [ ] `POST /api/oauth/token` invalid request
+- [ ] `GET /api/oauth/userinfo` unauthorized
