@@ -63,7 +63,8 @@ export const editProfile = mutation({
       updates.displayName = args.displayName.trim();
     }
     if (args.avatarUrl !== undefined) {
-      updates.avatarUrl = args.avatarUrl;
+      // Empty string clears the avatar
+      updates.avatarUrl = args.avatarUrl.trim() === "" ? undefined : args.avatarUrl.trim();
     }
 
     await ctx.db.patch(args.profileId, updates);
