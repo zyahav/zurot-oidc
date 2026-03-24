@@ -42,6 +42,10 @@ This is the mandatory delivery flow for all work in this repository.
   - what was completed,
   - exact commit/branch,
   - next single task.
+- After merge and task `DONE`, delete the task feature branch both:
+  - locally: `git branch -d codex/<task-branch>`
+  - on remote: `git push origin --delete codex/<task-branch>`
+- `main` is the only permanent branch; task branches are temporary.
 - Keep handoff short and unambiguous.
 
 ## Task Status Values (Only These)
@@ -66,4 +70,4 @@ This is the mandatory delivery flow for all work in this repository.
 - Required checks passed and recorded in `TEST_ATTESTATION.md`.
 - `TASKS.md` status is `DONE`.
 - `SESSION_STATE.md` updated.
-
+- Task feature branch deleted locally and remotely after merge.
