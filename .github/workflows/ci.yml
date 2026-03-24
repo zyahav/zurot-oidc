@@ -68,3 +68,37 @@ jobs:
 
       - name: Run build
         run: npm run build
+
+      - name: Run OIDC smoke checks
+        env:
+          SMOKE_START_SERVER: "false"
+        run: |
+          set -euo pipefail
+
+          cleanup() {
+            if [ -f /tmp/next-dev.pid ]; then
+              kill "$(cat /tmp/next-dev.pid)" 2>/dev/null || true
+              rm -f /tmp/next-dev.pid
+            fi
+          }
+          trap cleanup EXIT
+
+          npm run dev > /tmp/next-dev.log 2>&1 &
+          echo $! > /tmp/next-dev.pid
+
+          ready="false"
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/.well-known/openid-configuration >/dev/null; then
+              ready="true"
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$ready" != "true" ]; then
+            echo "Next.js server failed to become ready for smoke checks."
+            cat /tmp/next-dev.log || true
+            exit 1
+          fi
+
+          make smoke-oidc
