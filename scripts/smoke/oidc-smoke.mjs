@@ -87,13 +87,13 @@ async function run() {
     console.log("Local server is ready.");
   }
 
-  const homepage = await fetch(`${baseUrl}/`);
+  const homepage = await fetch(`${baseUrl}/`, { redirect: "manual" });
   if (homepage.status !== 200) {
     fail(`homepage check failed: expected 200, got ${homepage.status}`);
   }
   pass("GET /");
 
-  const internalPage = await fetch(`${baseUrl}/internal`);
+  const internalPage = await fetch(`${baseUrl}/internal`, { redirect: "manual" });
   if (internalPage.status !== 200) {
     fail(`/internal check failed: expected 200, got ${internalPage.status}`);
   }
