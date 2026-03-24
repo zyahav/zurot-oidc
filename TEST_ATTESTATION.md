@@ -165,34 +165,34 @@ Use this file as a strict audit log for each task.
 
 ---
 
-## Prepared Entry
+## Completed Entry
 
 - Task ID: `T-005`
 - Date: `2026-03-24`
 - Branch: `codex/logout-strategy`
-- Commit SHA: `TBD`
+- Commit SHA: `27e4d95` (merged to `main`)
 - Spec References: `BASELINE.md`, `docs/implementation/t-005-logout-spec.md`, `docs/implementation/t-005-logout-decisions.md`
 - Scope: Harden logout and profile-switch behavior, including State 2 logout access and smoke checks.
 
 ### Required Automated Checks
 
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [x] `npm run lint`
+- [x] `npm run build`
 
 ### Required Smoke Checks (T-005 Logout Strategy)
 
-- [ ] `GET /` returns 200
-- [ ] `GET /internal` returns 200
-- [ ] `GET /.well-known/openid-configuration` returns canonical endpoints
-- [ ] `GET /.well-known/jwks.json` returns keys
-- [ ] `POST /api/oauth/token` invalid request returns expected error
-- [ ] `GET /api/oauth/userinfo` without bearer returns expected error
+- [x] `GET /` returns 200
+- [x] `GET /internal` returns 200
+- [x] `GET /.well-known/openid-configuration` returns canonical endpoints
+- [x] `GET /.well-known/jwks.json` returns keys
+- [x] `POST /api/oauth/token` invalid request returns expected error
+- [x] `GET /api/oauth/userinfo` without bearer returns expected error
 
 ### Results
 
-- Automated checks:
-- Smoke checks:
-- Failures found:
-- Fix commit(s):
-- Final result: `PASS` or `FAIL`
-- Reviewer approval:
+- Automated checks: PR #15 CI green (`lint` and `build` passed).
+- Smoke checks: local `make quality` passed with added `/` and `/internal` checks plus all OIDC baseline checks.
+- Failures found: sync error flow was initially blocking; fixed by replacing blocking return with non-blocking dismissible warning. Redirect-following false-pass risk in smoke checks fixed by manual redirect mode.
+- Fix commit(s): `29a5095`, `11d0421`, `6d54a3e`.
+- Final result: `PASS`
+- Reviewer approval: PM + advisor verification complete; approved for merge.
