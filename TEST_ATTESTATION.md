@@ -66,12 +66,12 @@ Use this file as a strict audit log for each task.
 
 ---
 
-## Current Prepared Entry
+## Completed Entry
 
 - Task ID: `T-002`
 - Date: `2026-03-24`
 - Branch: `codex/smoke-tests`
-- Commit SHA: `6b36937`
+- Commit SHA: `61c9101` (merged to `main`)
 - Spec References: `BASELINE.md`
 - Scope: Add minimal smoke tests for OIDC contract.
 
@@ -89,9 +89,9 @@ Use this file as a strict audit log for each task.
 
 ### Results
 
-- Automated checks: local `npm run lint` and `npm run build` passed.
-- Smoke checks: local `npm run smoke:oidc` and `make smoke-oidc` passed all four OIDC endpoint checks.
+- Automated checks: CI run `23500082111` passed (`lint` and `build` green).
+- Smoke checks: CI run `23500082111` smoke step passed; local `npm run smoke:oidc` and `make smoke-oidc` also passed all four endpoint checks.
 - Failures found: initial smoke script relied on external running server; fixed with self-starting smoke runner.
-- Fix commit(s): `6b36937`.
+- Fix commit(s): `6b36937`, `61d9578`.
 - Final result: `PASS`
-- Reviewer approval: advisor verification completed.
+- Reviewer approval: PM + advisor verified; PR #12 CI green and merged.

@@ -3,8 +3,9 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `ddeee48`
+- Current HEAD commit: `61c9101`
 - T-001 merge commit: `c28573f`
+- T-002 merge commit: `61c9101`
 - Baseline stabilization commit: `fc2ada5`
 - Working tree at last check: clean
 
@@ -17,10 +18,10 @@
 
 ## Next Task
 
-- ID: `T-002`
-- Title: Add minimal smoke tests for OIDC contract
+- ID: `T-003`
+- Title: Replace harness homepage with real product homepage
 - Status: `PLANNED`
-- Next action: create `codex/smoke-tests` branch and implement smoke checks for discovery, JWKS, token invalid request, and userinfo unauthorized.
+- Next action: create `codex/homepage` branch and implement the real homepage while preserving OIDC test functionality internally.
 
 ## Resume Checklist (for new session)
 
