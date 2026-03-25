@@ -182,7 +182,6 @@ function AppLauncherState({
                 <a
                   key={app.id}
                   href={app.url}
-                  target="_blank"
                   rel="noreferrer"
                   className="rounded-xl border border-zinc-200 p-4 transition hover:border-zinc-300"
                 >
