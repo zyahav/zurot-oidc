@@ -3,13 +3,14 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `8b25a1a`
+- Current HEAD commit: `84f0d2a`
 - T-001 merge commit: `c28573f`
 - T-002 merge commit: `61c9101`
 - T-003 merge commit: `66c9017`
 - T-004 merge commit: `1c65500`
 - T-005 merge commit: `27e4d95`
 - T-006 merge commit: `8b25a1a`
+- T-007 merge commit: `84f0d2a`
 - Baseline stabilization commit: `fc2ada5`
 - Working tree at last check: clean
 
@@ -22,10 +23,10 @@
 
 ## Next Task
 
-- ID: `T-007`
-- Title: Update translation engine — add game product, explicit client mapping, scope isolation
+- ID: `T-008`
+- Title: Add ZurOt auth integration to mall-hebrew-adventures
 - Status: `PLANNED`
-- Next action: write and commit `docs/implementation/t-007-translation-engine-game-spec.md` before starting implementation.
+- Next action: write and commit `docs/implementation/t-008-mall-auth-spec.md` before starting implementation.
 
 ## Resume Checklist (for new session)
 
