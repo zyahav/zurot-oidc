@@ -22,10 +22,10 @@
 
 ## Next Task
 
-- ID: `N/A`
-- Title: Phase 0-1 planned task line complete through T-006
+- ID: `T-007`
+- Title: Update translation engine — add game product, explicit client mapping, scope isolation
 - Status: `PLANNED`
-- Next action: prepare next roadmap task and add `T-007` entry before starting a new branch.
+- Next action: write and commit `docs/implementation/t-007-translation-engine-game-spec.md` before starting implementation.
 
 ## Resume Checklist (for new session)
 
