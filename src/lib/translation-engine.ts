@@ -36,7 +36,8 @@ export type Product =
   | "cms"      // Content Management System
   | "lms"      // Learning Management System
   | "portal"   // Parent/Admin Portal
-  | "hub";     // ZurOt Hub itself
+  | "hub"      // ZurOt Hub itself
+  | "game";    // Mall Hebrew Adventures
 
 /**
  * Scope format: "product:permission"
@@ -74,6 +75,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     lms: ["lms:instructor", "lms:grader", "lms:viewer"],
     portal: ["portal:viewer"],
     hub: ["hub:profile", "hub:settings"],
+    game: ["game:instructor", "game:viewer"],
   },
   
   student: {
@@ -81,6 +83,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     lms: ["lms:student", "lms:viewer"],
     portal: [], // Students don't access portal
     hub: ["hub:profile"],
+    game: ["game:player"],
   },
   
   admin: {
@@ -88,6 +91,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     lms: ["lms:admin", "lms:instructor", "lms:grader", "lms:viewer"],
     portal: ["portal:admin", "portal:viewer", "portal:reports"],
     hub: ["hub:admin", "hub:profile", "hub:settings", "hub:users"],
+    game: ["game:instructor", "game:viewer", "game:player", "game:observer", "game:admin"],
   },
   
   parent: {
@@ -95,6 +99,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     lms: ["lms:viewer"], // View-only for student progress
     portal: ["portal:parent", "portal:viewer"],
     hub: ["hub:profile"],
+    game: ["game:observer"],
   },
   
   guest: {
@@ -102,6 +107,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     lms: ["lms:viewer"],
     portal: [],
     hub: ["hub:profile"],
+    game: [],
   },
 };
 
@@ -207,6 +213,16 @@ export function extractProductFromScope(scope: string): string | null {
   return parts.length === 2 ? parts[0] : null;
 }
 
+export function scopeBelongsToProduct(scope: string, product: Product): boolean {
+  if (!scope.includes(":")) return false;
+  const scopeProduct = scope.split(":")[0];
+  return scopeProduct === product;
+}
+
+export function filterScopesToProduct(scopes: string[], product: Product): string[] {
+  return scopes.filter(scope => scopeBelongsToProduct(scope, product));
+}
+
 /**
  * Resolve client_id to product name
  * Phase 2: Query from oauthClients table with product field
@@ -219,6 +235,7 @@ export function resolveClientToProduct(clientId: string): Product {
     "cms-client": "cms",
     "lms-client": "lms",
     "portal-client": "portal",
+    "mall-hebrew-adventures": "game",
   };
   
   // Check exact match first
