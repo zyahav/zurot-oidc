@@ -234,22 +234,10 @@ export const getAppsForActiveProfile = query({
 
     return [
       {
-        id: "game",
-        name: "Game",
-        url: "https://game.zurot.org",
+        id: "mall-hebrew-adventures",
+        name: "Mall Hebrew Adventures",
+        url: "https://mall-hebrew-adventures.pages.dev",
         description: "Play",
-      },
-      {
-        id: "bbb",
-        name: "BBB",
-        url: "https://bbb.zurot.org",
-        description: "Learn",
-      },
-      {
-        id: "vibe",
-        name: "Vibe",
-        url: "https://vibe.zurot.org",
-        description: "Create",
       },
     ];
   },
