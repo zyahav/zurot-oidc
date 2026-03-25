@@ -3,12 +3,13 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `27e4d95`
+- Current HEAD commit: `8b25a1a`
 - T-001 merge commit: `c28573f`
 - T-002 merge commit: `61c9101`
 - T-003 merge commit: `66c9017`
 - T-004 merge commit: `1c65500`
 - T-005 merge commit: `27e4d95`
+- T-006 merge commit: `8b25a1a`
 - Baseline stabilization commit: `fc2ada5`
 - Working tree at last check: clean
 
@@ -21,10 +22,10 @@
 
 ## Next Task
 
-- ID: `T-006`
-- Title: Integrate first federated app end-to-end
+- ID: `N/A`
+- Title: Phase 0-1 planned task line complete through T-006
 - Status: `PLANNED`
-- Next action: confirm first federated app target, branch `codex/first-federated-app` from `main`, prepare T-006 attestation entry, then implement end-to-end integration.
+- Next action: prepare next roadmap task and add `T-007` entry before starting a new branch.
 
 ## Resume Checklist (for new session)
 

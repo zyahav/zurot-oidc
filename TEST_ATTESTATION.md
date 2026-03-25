@@ -199,35 +199,46 @@ Use this file as a strict audit log for each task.
 
 ---
 
-## Prepared Entry
+## Completed Entry
 
 - Task ID: `T-006`
 - Date: `2026-03-24`
 - Branch: `codex/first-federated-app`
-- Commit SHA: `TBD`
+- Commit SHA: `8b25a1a` (merged to `main`)
 - Spec References: `BASELINE.md`, `docs/implementation/t-006-first-federated-app-spec.md`
 - Scope: Register first federated client and add idempotent client seed script/tooling.
 
 ### Required Automated Checks
 
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [x] `npm run lint`
+- [x] `npm run build`
 
 ### Required Smoke Checks (T-006 First Federated App)
 
-- [ ] `make seed-clients` runs without error
-- [ ] `GET /` returns 200
-- [ ] `GET /internal` returns 200
-- [ ] `GET /.well-known/openid-configuration` returns canonical endpoints
-- [ ] `GET /.well-known/jwks.json` returns keys
-- [ ] `POST /api/oauth/token` invalid request returns expected error
-- [ ] `GET /api/oauth/userinfo` without bearer returns expected error
+- [x] `make seed-clients` runs without error
+- [x] `GET /` returns 200
+- [x] `GET /internal` returns 200
+- [x] `GET /.well-known/openid-configuration` returns canonical endpoints
+- [x] `GET /.well-known/jwks.json` returns keys
+- [x] `POST /api/oauth/token` invalid request returns expected error
+- [x] `GET /api/oauth/userinfo` without bearer returns expected error
 
 ### Results
 
-- Automated checks:
-- Smoke checks:
-- Failures found:
-- Fix commit(s):
-- Final result: `PASS` or `FAIL`
-- Reviewer approval:
+- Automated checks: PR #16 CI run `23520193158` passed (`lint` and `build` green).
+- Smoke checks: local `make quality` passed; `make seed-clients` succeeded and smoke endpoints all passed.
+- Failures found: initial seed execution failed in sandbox due network restriction; resolved by rerunning outside sandbox. No product code defects remained.
+- Fix commit(s): `e7764c3`, `c81de58`.
+- Final result: `PASS`
+- Reviewer approval: PM + advisor validated token-contract evidence and approved merge.
+
+#### Token Claim Evidence (Completed Flow)
+
+- `iss`: `http://localhost:3000`
+- `aud`: `mall-hebrew-adventures`
+- `sub`: `profile_js71q9tyv7a18efcz8amqnf18n83kj18`
+- `account_id`: `account_jx7cdeef3vfwczg4mchm2w70gs83kqmf`
+- `name`: `Seed T006 1774401198`
+- `preferred_username`: `seedt0061774401198`
+- `token_type`: `Bearer`
+- `expires_in`: `900`
