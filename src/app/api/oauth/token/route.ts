@@ -8,6 +8,16 @@ import {
   filterScopesToProduct,
 } from "@/lib/translation-engine";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") || "";
@@ -39,14 +49,14 @@ export async function POST(request: NextRequest) {
     if (grantType !== "authorization_code") {
       return NextResponse.json(
         { error: "unsupported_grant_type" },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
 
     if (!code || !clientId || !redirectUri) {
       return NextResponse.json(
         { error: "invalid_request", error_description: "Missing parameters" },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
 
@@ -94,6 +104,7 @@ export async function POST(request: NextRequest) {
       },
       {
         headers: {
+          ...CORS_HEADERS,
           "Cache-Control": "no-store",
           Pragma: "no-cache",
         },
@@ -106,7 +117,7 @@ export async function POST(request: NextRequest) {
         error: "server_error",
         error_description: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

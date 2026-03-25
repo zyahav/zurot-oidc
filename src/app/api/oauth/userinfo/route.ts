@@ -3,6 +3,16 @@ import { convexServer } from "@/lib/convex-server";
 import { api } from "../../../../../convex/_generated/api";
 import { verifyToken } from "@/lib/jwt";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Extract token from Authorization header
@@ -10,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         { error: "invalid_token" },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 
@@ -21,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (!payload || !payload.sub) {
       return NextResponse.json(
         { error: "invalid_token" },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 
@@ -34,7 +44,7 @@ export async function GET(request: NextRequest) {
     if (!profileId || !subject) {
       return NextResponse.json(
         { error: "invalid_token" },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 
@@ -46,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!profile) {
       return NextResponse.json(
         { error: "profile_not_found" },
-        { status: 404 }
+        { status: 404, headers: CORS_HEADERS }
       );
     }
 
@@ -65,6 +75,7 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
+          ...CORS_HEADERS,
           "Cache-Control": "no-store",
           Pragma: "no-cache",
         },
@@ -74,7 +85,7 @@ export async function GET(request: NextRequest) {
     console.error("Userinfo endpoint error:", error);
     return NextResponse.json(
       { error: "server_error" },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }
