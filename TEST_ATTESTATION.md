@@ -242,3 +242,38 @@ Use this file as a strict audit log for each task.
 - `preferred_username`: `seedt0061774401198`
 - `token_type`: `Bearer`
 - `expires_in`: `900`
+
+---
+
+## Prepared Entry
+
+- Task ID: `T-007`
+- Date: `2026-03-25`
+- Branch: `codex/game-translation`
+- Commit SHA: `TBD`
+- Spec References: `docs/implementation/t-007-translation-engine-game-spec.md`
+- Scope: Add game product translation mappings, explicit client mapping, and scope isolation enforcement.
+
+### Required Automated Checks
+
+- [ ] `npm run lint`
+- [ ] `npm run build`
+
+### Required Smoke Checks (T-007 Translation Engine)
+
+- [ ] 7 translation-engine test cases pass
+- [ ] `GET /` returns 200
+- [ ] `GET /internal` returns 200
+- [ ] `GET /.well-known/openid-configuration` returns canonical endpoints
+- [ ] `GET /.well-known/jwks.json` returns keys
+- [ ] `POST /api/oauth/token` invalid request returns expected error
+- [ ] `GET /api/oauth/userinfo` without bearer returns expected error
+
+### Results
+
+- Automated checks:
+- Smoke checks:
+- Failures found:
+- Fix commit(s):
+- Final result: `PASS` or `FAIL`
+- Reviewer approval:

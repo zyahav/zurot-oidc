@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { convexServer } from "@/lib/convex-server";
 import { api } from "../../../../../convex/_generated/api";
 import { generateIdToken, generateAccessToken } from "@/lib/jwt";
-import { translatePersonaToScopes, resolveClientToProduct } from "@/lib/translation-engine";
+import {
+  translatePersonaToScopes,
+  resolveClientToProduct,
+  filterScopesToProduct,
+} from "@/lib/translation-engine";
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +67,8 @@ export async function POST(request: NextRequest) {
     // ==========================================================================
     const persona = result.profile.role;
     const product = resolveClientToProduct(clientId);
-    const scopes = translatePersonaToScopes(persona, product);
+    const rawScopes = translatePersonaToScopes(persona, product);
+    const scopes = filterScopesToProduct(rawScopes, product);
 
     // Generate tokens with translated scopes
     const tokenPayload = {
