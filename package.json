@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "smoke:oidc": "node scripts/smoke/oidc-smoke.mjs"
+    "smoke:oidc": "node scripts/smoke/oidc-smoke.mjs",
+    "seed:clients": "node scripts/seed/register-clients.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.3",
