@@ -7,6 +7,7 @@ const clients = [
     clientId: "mall-hebrew-adventures",
     redirectUris: [
       "https://mall-hebrew-adventures.pages.dev/auth/callback",
+      "https://preview-zurot-auth.mall-hebrew-adventures.pages.dev/auth/callback",
       "http://localhost:8080/auth/callback",
       "http://localhost:3000/test",
     ],
