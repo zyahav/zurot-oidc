@@ -236,7 +236,7 @@ export const getAppsForActiveProfile = query({
       {
         id: "mall-hebrew-adventures",
         name: "Mall Hebrew Adventures",
-        url: "https://mall-hebrew-adventures.pages.dev",
+        url: "https://preview-zurot-auth.mall-hebrew-adventures.pages.dev",
         description: "Play",
       },
     ];
