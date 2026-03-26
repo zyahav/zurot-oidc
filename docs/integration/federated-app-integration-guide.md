@@ -24,6 +24,13 @@ This guide prevents:
 
 ---
 
+## Token Contract Reference
+
+Before implementing auth in any federated app, read `docs/architecture/token-contract.md`.
+The JWT claim for permissions is `scopes` (array), not `scope` (string).
+
+---
+
 ## 2. What an App Is (and Is Not)
 
 ### An App IS
@@ -186,4 +193,3 @@ An app is compliant when:
 ---
 
 End of Federated App Integration Guide.
-

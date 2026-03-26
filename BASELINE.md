@@ -12,6 +12,7 @@ This document locks the current implementation contract for baseline stabilizati
 ## Identity Contract
 
 - `sub` format: `profile_<convexProfileId>`
+- JWT scopes claim: `scopes` (string array) — not the standard OIDC `scope` string. Format: `["game:instructor", "game:viewer"]`
 - `account_id` claim: required and intentional
   - Purpose: represent the human account identity separately from the selected profile identity.
   - `sub` is profile-scoped identity; `account_id` is the parent human account context.
