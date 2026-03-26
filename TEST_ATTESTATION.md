@@ -277,3 +277,34 @@ Use this file as a strict audit log for each task.
 - Fix commit(s): `cef3657`.
 - Final result: `PASS`
 - Reviewer approval: PM + advisor verification complete; approved for merge.
+
+---
+
+## Completed Entry
+
+- Task ID: `T-008`
+- Date: `2026-03-25`
+- Branch: `main` (implemented in `mall-hebrew-adventures` via PR #1)
+- Commit SHA: `9813b2a`
+- Spec References: `docs/implementation/t-008-mall-auth-spec.md`
+- Scope: Add ZurOt auth integration to `mall-hebrew-adventures` and verify end-to-end OIDC behavior.
+
+### Required Automated Checks
+
+- [x] `npm run lint`
+- [x] `npm run build`
+
+### Required Smoke Checks (T-008 Mall Auth)
+
+- [x] Scope parsing fix verified (`scopes` claim, not `scope`)
+- [x] Full OIDC flow confirmed end-to-end
+- [x] Federated app callback and token exchange verified
+
+### Results
+
+- Automated checks: app integration validated and CI passed for merged mall app PR #1.
+- Smoke checks: login, callback, token parsing, and gated app rendering all confirmed working.
+- Failures found: initial parsing bug in federated app (`scope` vs `scopes`) was corrected and reverified.
+- Fix commit(s): integration fixes merged in `mall-hebrew-adventures` PR #1.
+- Final result: `PASS`
+- Reviewer approval: PM + advisor verified end-to-end completion.

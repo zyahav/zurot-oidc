@@ -3,7 +3,7 @@
 ## Last Stable Point
 
 - Branch: `main`
-- Current HEAD commit: `84f0d2a`
+- Current HEAD commit: `9813b2a`
 - T-001 merge commit: `c28573f`
 - T-002 merge commit: `61c9101`
 - T-003 merge commit: `66c9017`
@@ -23,10 +23,10 @@
 
 ## Next Task
 
-- ID: `T-008`
-- Title: Add ZurOt auth integration to mall-hebrew-adventures
-- Status: `PLANNED`
-- Next action: write and commit `docs/implementation/t-008-mall-auth-spec.md` before starting implementation.
+- ID: `none`
+- Title: `Phase 0 complete`
+- Status: `DONE`
+- Next action: await new spec/task for Phase 1 planning.
 
 ## Resume Checklist (for new session)
 
