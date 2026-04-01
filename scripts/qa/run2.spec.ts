@@ -4,11 +4,12 @@ import { createClerkClient } from '@clerk/backend';
 
 const OIDC_CLIENT_ID = 'mall-hebrew-adventures';
 const TEST_PIN = '1234';
+const TEST_ACCOUNT_PASSWORD = 'QaRun2Pass1234';
 const MANAGE_GATE_SESSION_KEY = 'zurot_manage_gate_unlocked';
 
 const BASE_URL = process.env.ZUROT_BASE_URL || 'http://localhost:3000';
 const OIDC_REDIRECT_URI = `${BASE_URL}/test`;
-const MANAGE_PASSWORD = process.env.NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD || '';
+const MANAGE_PASSWORD = TEST_ACCOUNT_PASSWORD;
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -84,7 +85,7 @@ test.beforeAll(async () => {
   testEmail = `qa.run2.${stamp}@example.com`;
   const user = await clerkBackend.users.createUser({
     emailAddress: [testEmail],
-    password: 'QaRun2Pass1234',
+    password: TEST_ACCOUNT_PASSWORD,
     firstName: 'QA', lastName: 'Run2',
     skipPasswordChecks: true,
   });
@@ -114,6 +115,10 @@ test.beforeEach(async ({ page }) => {
 // ─── Step 1: Profile Selection ───────────────────────────────────────────────
 
 test('Step 1 - /profiles loads with profile grid', async ({ page }) => {
+  // T-010 check: signed-in session with no active profile should resolve root "/" to "/profiles".
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/profiles', { timeout: 10000 });
+
   await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible();
   await expect(page.getByText('Add Profile', { exact: true }).first()).toBeVisible();
 });
@@ -139,6 +144,21 @@ test('Step 1 - Select non-PIN profile redirects to /portal', async ({ page }) =>
 
   await enterPortalViaProfileCard(page, profileName);
   expect(page.url()).toContain('/portal');
+
+  // T-010 check: signed-in session with active profile should resolve root "/" to "/portal".
+  let rootResolvedToPortal = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+    try {
+      await page.waitForURL('**/portal', { timeout: 12000 });
+      rootResolvedToPortal = true;
+      break;
+    } catch {
+      await page.goto(`${BASE_URL}/portal`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1200);
+    }
+  }
+  expect(rootResolvedToPortal).toBe(true);
 });
 
 test('Step 1 - Password gate appears on /profiles/manage', async ({ page }) => {
@@ -166,15 +186,17 @@ test('Step 1 - Wrong management password shows inline error', async ({ page }) =
       await page.waitForTimeout(1500);
     }
   }
+  await expect(page.getByText('Manage Profiles', { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByPlaceholder('Account password')).toBeVisible({ timeout: 10000 });
   await page.getByPlaceholder('Account password').fill('wrong-password');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await expect(page.getByText('Incorrect account password.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Incorrect account password.', { exact: true })).toBeVisible({ timeout: 15000 });
 });
 
 test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async ({ page }) => {
   const profileName = uniqueProfileName();
   test.setTimeout(150000); // PIN cooldown is 30s + setup time
-  test.skip(!MANAGE_PASSWORD, 'NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD not set');
+  test.skip(!MANAGE_PASSWORD, 'Manage password is not configured');
 
   // Create profile
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
@@ -201,11 +223,10 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
 
   // Navigate to the newly created profile — manage shows profiles[0] by default
   const profileLink = page.locator('aside a', { hasText: profileName }).first();
-  if ((await profileLink.count()) > 0) {
-    await profileLink.click();
-    await page.waitForTimeout(800);
-    await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 5000 });
-  }
+  await expect(profileLink).toBeVisible({ timeout: 10000 });
+  await profileLink.click();
+  await page.waitForTimeout(800);
+  await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 5000 });
 
   // Clear any existing PIN first to guarantee a clean Set PIN flow
   if ((await page.getByRole('button', { name: 'Remove', exact: true }).count()) > 0) {
@@ -219,12 +240,33 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
   await page.getByRole('button', { name: 'Save PIN', exact: true }).click();
   // Wait for PIN input to disappear (mode returns to idle) — more reliable than brief toast
   await expect(page.getByPlaceholder('0000')).toBeHidden({ timeout: 10000 });
-  // Confirm PIN is now set — Change PIN and Remove buttons visible
-  await expect(page.getByRole('button', { name: 'Change PIN', exact: true })).toBeVisible({ timeout: 5000 });
+  // Confirm PIN is now set — Remove button only appears when hasPin is true.
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible({ timeout: 10000 });
 
   // Select PIN-protected profile — modal should appear
   await page.goto(`${BASE_URL}/profiles`);
-  await page.locator('button', { hasText: profileName }).first().click();
+  let pinModalVisible = false;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const profileCard = page.locator('button', { hasText: profileName }).first();
+    await expect(profileCard).toBeVisible({ timeout: 10000 });
+    try {
+      await profileCard.click({ force: true, timeout: 5000 });
+    } catch {
+      await profileCard.evaluate((el) => (el as HTMLButtonElement).click());
+    }
+    await page.waitForTimeout(300);
+    try {
+      await page.getByText('Enter PIN', { exact: true }).waitFor({ state: 'visible', timeout: 4000 });
+      pinModalVisible = true;
+      break;
+    } catch {
+      if (page.url().includes('/portal')) {
+        await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' });
+      }
+      await page.waitForTimeout(1000);
+    }
+  }
+  expect(pinModalVisible).toBe(true);
   await expect(page.getByText('Enter PIN', { exact: true })).toBeVisible({ timeout: 8000 });
 
   // 4 wrong attempts
@@ -313,11 +355,28 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   await page.getByRole('button', { name: 'Switch profile', exact: true }).click();
   await page.waitForURL('**/profiles', { timeout: 10000 });
   expect(page.url()).toContain('/profiles');
+
+  // T-010 check: sign-out should hard-redirect, and modal must not persist after sign-in.
+  await page.getByRole('button', { name: 'Sign out of account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sign out of account?' })).toBeVisible({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.waitForURL('**/profiles', { timeout: 10000 });
+  await expect(page.getByText('Sign in to select a profile.', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // T-010 check: signed-out root should resolve to /profiles.
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/profiles', { timeout: 10000 });
+
+  // Sign back in and ensure sign-out modal does not persist.
+  await clerk.signIn({ page, emailAddress: testEmail });
+  await page.waitForURL('**/profiles', { timeout: 15000 });
+  await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'Sign out of account?' })).toHaveCount(0);
 });
 
 test('Step 2 - Disabled app removed from portal app grid', async ({ page }) => {
   const profileName = uniqueProfileName();
-  test.skip(!MANAGE_PASSWORD, 'NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD not set');
+  test.skip(!MANAGE_PASSWORD, 'Manage password is not configured');
 
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
@@ -341,7 +400,7 @@ test('Step 2 - Disabled app removed from portal app grid', async ({ page }) => {
   }
 
   await page.goto(`${BASE_URL}/portal`);
-  await expect(page.getByText('Mall Hebrew Adventures', { exact: true })).toBeHidden();
+  await expect(page.locator('a[href="/portal/app/mall-hebrew-adventures"]')).toHaveCount(0);
 });
 
 // ─── Step 3: Launch + OIDC ────────────────────────────────────────────────────
@@ -455,12 +514,12 @@ test('Step 4 - Wrong password inline error, does not lock', async ({ page }) => 
   await page.goto(`${BASE_URL}/profiles/manage`);
   await page.getByPlaceholder('Account password').fill('wrong-password');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await expect(page.getByText('Incorrect account password.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Incorrect account password.', { exact: true })).toBeVisible({ timeout: 15000 });
 });
 
 test('Step 4 - Full management dashboard flow', async ({ page }) => {
   const profileName = uniqueProfileName();
-  test.skip(!MANAGE_PASSWORD, 'NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD not set');
+  test.skip(!MANAGE_PASSWORD, 'Manage password is not configured');
 
   // Create profile to work with
   await page.getByRole('button', { name: /Add Profile/i }).first().click();

@@ -1,4 +1,4 @@
-.PHONY: help lint build smoke-oidc seed-clients convex-fresh convex-reset-dev convex-sync convex-sync-fresh clerk-check qa-run2 dev quality
+.PHONY: help lint build smoke-oidc seed-clients convex-fresh convex-reset-dev convex-sync convex-sync-fresh clerk-check qa-run2 qa-step1 qa-step2 qa-step3 qa-step4 qa-manage qa-oidc qa-pin dev quality
 
 help:
 	@echo "Available targets:"
@@ -11,7 +11,14 @@ help:
 	@echo "  make convex-sync - Push local Convex functions/schema to dev deployment"
 	@echo "  make convex-sync-fresh - Push local Convex code to the fresh run2 QA deployment"
 	@echo "  make clerk-check - Verify Clerk key pairing"
-	@echo "  make qa-run2     - Run full Run-2 end-to-end QA pass"
+	@echo "  make qa-run2     - Run full QA suite (all 14 tests, ~3-5 min)"
+	@echo "  make qa-step1    - Run Step 1 tests only (profile selection, ~1 min)"
+	@echo "  make qa-step2    - Run Step 2 tests only (portal, ~1 min)"
+	@echo "  make qa-step3    - Run Step 3 tests only (OIDC silent auth, ~30s)"
+	@echo "  make qa-step4    - Run Step 4 tests only (management dashboard, ~1 min)"
+	@echo "  make qa-pin      - Run PIN flow test only (~45s, includes cooldown)"
+	@echo "  make qa-manage   - Run management gate tests only (~30s)"
+	@echo "  make qa-oidc     - Run OIDC token claims test only (~30s)"
 	@echo "  make dev         - Start local Next.js dev server"
 	@echo "  make quality     - Run lint, build, and smoke checks"
 
@@ -52,6 +59,30 @@ clerk-check:
 
 qa-run2:
 	npx --env-file=.env.local playwright test --config=playwright.config.ts
+
+# Targeted QA — run only the tests relevant to what you changed
+# Much faster for iterating on a specific feature.
+
+qa-step1:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Step 1"
+
+qa-step2:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Step 2"
+
+qa-step3:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Step 3"
+
+qa-step4:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Step 4"
+
+qa-manage:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "management password|Wrong management|Full management"
+
+qa-oidc:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Silent auth"
+
+qa-pin:
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "PIN flow"
 
 dev:
 	npm run dev -- --port 3000
