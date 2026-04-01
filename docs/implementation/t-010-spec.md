@@ -148,83 +148,168 @@ const confirmSignOut = async () => {
 
 ---
 
-## Fix 3 — Manage Profiles password gate uses Clerk
+## Fix 3 — Manage Profiles gate uses email verification code
 
-### What the bug is
+### Context
 
-The gate compares `passwordInput !== NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD`. This is a
-static env var, not the user's real Clerk account password. The spec (Section 10) states:
-"In production this is the Clerk account password."
+The gate must verify the account owner before allowing access to profile settings,
+PIN controls, and deletion. The original spec said "Clerk account password" but
+the ZurOt.org Clerk instance uses email code as the primary authentication method
+(not password). Accounts created via email OTP have `passwordEnabled: false` — there
+is no password to verify.
 
-### What the fix is
+The gate therefore uses Clerk's email verification code flow. This matches how the
+user actually authenticates and requires no new dependency.
 
-Use Clerk's `useSignIn` hook to attempt password verification without creating a new session.
+### Gate states
 
-**In `src/app/profiles/manage/manage-dashboard.tsx`:**
+The gate has three states:
 
-Add imports:
+| State | What the user sees |
+|---|---|
+| `idle` | "Send verification code" button + explanation |
+| `code_sent` | 6-digit code input + "Verify" button + "Resend" link |
+| `error` | Inline error message, input stays visible |
+
+### UX flow
+
+1. User clicks "Manage Profiles" on the profile selection screen
+2. Gate renders — shows their masked email and a "Send code" button
+3. User clicks "Send code" → Clerk sends a 6-digit OTP to their email
+4. User enters the code → gate verifies via Clerk
+5. On success → gate unlocks for this browser session (sessionStorage)
+6. On failure → inline error, user can retry
+
+### Implementation
+
+**State additions in `manage-dashboard.tsx`:**
+
 ```typescript
-import { SignInButton, useAuth, useClerk, useSignIn, useUser } from "@clerk/nextjs";
+// Replace passwordInput state with:
+const [gateState, setGateState] = useState<"idle" | "sending" | "code_sent" | "verifying">("idle");
+const [codeInput, setCodeInput] = useState("");
+const [gateError, setGateError] = useState<string | null>(null);
 ```
 
-Add hooks inside the component:
+**Imports to add:**
 ```typescript
-const { signIn } = useSignIn();
+import { useSignIn, useUser } from "@clerk/nextjs";
+// inside component:
+const { signIn, setActive } = useSignIn();
 const { user } = useUser();
 ```
 
-Replace `unlockGate` with:
+**Send code handler:**
 ```typescript
-const unlockGate = async (event: FormEvent) => {
-  event.preventDefault();
-  setGateError(null);
-
-  if (!signIn || !user) {
-    setGateError("Authentication unavailable. Please refresh the page.");
-    return;
-  }
-
+const sendGateCode = async () => {
+  if (!signIn || !user) return;
   const email = user.primaryEmailAddress?.emailAddress;
-  if (!email) {
-    setGateError("No email address found on this account.");
-    return;
-  }
+  if (!email) { setGateError("No email on account."); return; }
 
+  setGateState("sending");
+  setGateError(null);
   try {
-    const result = await signIn.create({
-      strategy: "password",
-      identifier: email,
-      password: passwordInput,
-    });
-
-    if (result.status === "complete") {
-      // Password verified — do NOT activate the resulting session.
-      // We only needed to confirm the password was correct.
-      sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
-      setIsUnlocked(true);
-      setPasswordInput("");
-    } else {
-      setGateError("Incorrect account password.");
-    }
+    await signIn.create({ strategy: "email_code", identifier: email });
+    setGateState("code_sent");
   } catch {
-    setGateError("Incorrect account password.");
+    setGateError("Could not send code. Please try again.");
+    setGateState("idle");
   }
 };
 ```
 
-Remove these lines from the top of the file:
+**Verify code handler:**
 ```typescript
-// REMOVE:
-const MANAGE_PASSWORD = process.env.NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD;
+const verifyGateCode = async (event: FormEvent) => {
+  event.preventDefault();
+  if (!signIn) return;
+
+  setGateState("verifying");
+  setGateError(null);
+  try {
+    const result = await signIn.attemptFirstFactor({
+      strategy: "email_code",
+      code: codeInput,
+    });
+    if (result.status === "complete") {
+      // Do NOT call setActive() — we only needed to verify identity,
+      // not switch the session.
+      sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
+      setIsUnlocked(true);
+      setCodeInput("");
+    } else {
+      setGateError("Incorrect code. Please try again.");
+      setGateState("code_sent");
+    }
+  } catch {
+    setGateError("Incorrect code. Please try again.");
+    setGateState("code_sent");
+  }
+};
 ```
 
-Remove `NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD` from `.env.local` and from `docs/setup/LOCAL_SETUP.md`
-Section 9b. It is no longer needed.
+**Gate UI — replace the form with:**
+```tsx
+{gateState === "idle" || gateState === "sending" ? (
+  <div className="mt-5 space-y-3">
+    <p className="text-sm text-zinc-400">
+      A verification code will be sent to{" "}
+      <span className="text-zinc-200">{user?.primaryEmailAddress?.emailAddress}</span>
+    </p>
+    {gateError ? <p className="text-sm text-red-400">{gateError}</p> : null}
+    <div className="flex items-center justify-end gap-3">
+      <button type="button" onClick={() => router.push("/profiles")}
+        className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200">
+        Cancel
+      </button>
+      <button type="button" onClick={() => void sendGateCode()}
+        disabled={gateState === "sending"}
+        className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-60">
+        {gateState === "sending" ? "Sending..." : "Send code"}
+      </button>
+    </div>
+  </div>
+) : (
+  <form onSubmit={verifyGateCode} className="mt-5 space-y-3">
+    <p className="text-sm text-zinc-400">
+      Code sent to{" "}
+      <span className="text-zinc-200">{user?.primaryEmailAddress?.emailAddress}</span>
+    </p>
+    <input
+      type="text" inputMode="numeric" maxLength={6}
+      value={codeInput} onChange={e => setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+      className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 tracking-widest"
+      placeholder="000000" autoFocus required
+    />
+    {gateError ? <p className="text-sm text-red-400">{gateError}</p> : null}
+    <div className="flex items-center justify-between">
+      <button type="button" onClick={() => void sendGateCode()}
+        className="text-xs text-zinc-500 underline hover:text-zinc-300">
+        Resend code
+      </button>
+      <div className="flex gap-3">
+        <button type="button" onClick={() => { setGateState("idle"); setCodeInput(""); setGateError(null); }}
+          className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200">
+          Cancel
+        </button>
+        <button type="submit" disabled={gateState === "verifying" || codeInput.length < 6}
+          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-60">
+          {gateState === "verifying" ? "Verifying..." : "Verify"}
+        </button>
+      </div>
+    </div>
+  </form>
+)}
+```
 
-**Important:** `signIn.create()` with `strategy: "password"` creates a sign-in attempt
-object. When `status === "complete"` it means the password is correct. Do NOT call
-`setActive()` on the result — that would switch the active Clerk session, which is not
-what we want. We only use this API to verify the password.
+**Remove from the file:**
+- `const MANAGE_PASSWORD = process.env.NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD;`
+- The old `unlockGate` function entirely
+- The old `passwordInput` state
+- `useSignIn` import if already present with old usage
+
+**Remove from `.env.local` and `docs/setup/LOCAL_SETUP.md`:**
+- `NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD` — no longer needed
 
 ---
 
@@ -248,8 +333,11 @@ Before committing:
 - [ ] `http://localhost:3000/` redirects to `/portal` when signed in with active profile
 - [ ] `http://localhost:3000/` redirects to `/profiles` when signed in but no active profile
 - [ ] Sign out → confirm → sign back in → sign-out modal is NOT visible
-- [ ] Manage Profiles gate accepts real Clerk account password
-- [ ] Manage Profiles gate rejects wrong password with inline error
+- [ ] Manage Profiles gate shows masked email and "Send code" button
+- [ ] Clicking "Send code" delivers OTP to email (check inbox)
+- [ ] Correct code unlocks the dashboard
+- [ ] Wrong code shows inline error and stays on code input
+- [ ] "Resend code" sends a new code without losing state
 - [ ] `npm run lint` — 0 errors
 - [ ] `make qa-run2` — 14/14 passing
 
