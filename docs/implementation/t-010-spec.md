@@ -1,6 +1,6 @@
 # T-010 Spec — Root Route, Sign-Out Redirect, and Manage Gate
 
-**Status:** APPROVED — ready for implementation
+**Status:** PARTIALLY DONE — Fix 3 gate is a placeholder pending T-011
 **Branch:** `codex/root-signout-gate`
 **Spec References:** `zurot_profiles_spec_v2.2`, `docs/implementation/t-003-homepage-spec.md`
 
@@ -148,7 +148,16 @@ const confirmSignOut = async () => {
 
 ---
 
-## Fix 3 — Manage Profiles gate uses email verification code
+## Fix 3 — Manage Profiles gate (honest placeholder)
+
+> **Note:** This fix installs an honest placeholder gate. The full account PIN system
+> is specified in T-011. Do NOT implement any Clerk verification APIs here —
+>  fails when already authenticated, and 
+> is designed for email address changes, not re-authentication.
+> The placeholder is intentionally transparent: it describes what the page does
+> and asks the user to confirm before entering. This is honest UX, not fake security.
+
+## Fix 3 — Manage Profiles gate (honest placeholder)
 
 ### Context
 
