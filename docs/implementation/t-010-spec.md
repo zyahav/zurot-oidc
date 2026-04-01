@@ -191,25 +191,30 @@ const [codeInput, setCodeInput] = useState("");
 const [gateError, setGateError] = useState<string | null>(null);
 ```
 
-**Imports to add:**
+**Imports — use only useUser, NOT useSignIn:**
 ```typescript
-import { useSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 // inside component:
-const { signIn, setActive } = useSignIn();
 const { user } = useUser();
+// Do NOT use useSignIn — it is not needed for this flow
 ```
+
+**Critical API note:**
+Do NOT use `signIn.create({ strategy: "email_code" })`. That API starts a new sign-in
+flow and returns 400 when the user is already authenticated. The correct API for
+re-verifying an already-signed-in user is `emailAddress.prepareVerification()`.
 
 **Send code handler:**
 ```typescript
 const sendGateCode = async () => {
-  if (!signIn || !user) return;
-  const email = user.primaryEmailAddress?.emailAddress;
-  if (!email) { setGateError("No email on account."); return; }
+  if (!user) return;
+  const emailAddress = user.primaryEmailAddress;
+  if (!emailAddress) { setGateError("No email on account."); return; }
 
   setGateState("sending");
   setGateError(null);
   try {
-    await signIn.create({ strategy: "email_code", identifier: email });
+    await emailAddress.prepareVerification({ strategy: "email_code" });
     setGateState("code_sent");
   } catch {
     setGateError("Could not send code. Please try again.");
@@ -222,18 +227,15 @@ const sendGateCode = async () => {
 ```typescript
 const verifyGateCode = async (event: FormEvent) => {
   event.preventDefault();
-  if (!signIn) return;
+  if (!user) return;
+  const emailAddress = user.primaryEmailAddress;
+  if (!emailAddress) return;
 
   setGateState("verifying");
   setGateError(null);
   try {
-    const result = await signIn.attemptFirstFactor({
-      strategy: "email_code",
-      code: codeInput,
-    });
-    if (result.status === "complete") {
-      // Do NOT call setActive() — we only needed to verify identity,
-      // not switch the session.
+    const result = await emailAddress.attemptVerification({ code: codeInput });
+    if (result.verification?.status === "verified") {
       sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
       setIsUnlocked(true);
       setCodeInput("");
