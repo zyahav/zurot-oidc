@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { SignInButton, useAuth, useClerk, useSignIn, useUser } from "@clerk/nextjs";
+import { useEffect, useMemo, useState } from "react";
+import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
@@ -42,13 +42,9 @@ const getActivityDuration = (activity: ActivityRecord, index: number) => {
 export function ManageDashboard({ initialProfileId }: { initialProfileId?: string }) {
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const { signIn } = useSignIn();
-  const { user } = useUser();
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
 
-  const [passwordInput, setPasswordInput] = useState("");
-  const [gateError, setGateError] = useState<string | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(
     () => typeof window !== "undefined" && sessionStorage.getItem(MANAGE_GATE_SESSION_KEY) === "1"
   );
@@ -123,57 +119,6 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     setPinError(null);
     setShowDeleteConfirm(false);
   }, [selectedProfile]);
-
-  const unlockGate = async (event: FormEvent) => {
-    event.preventDefault();
-    setGateError(null);
-
-    const unlock = () => {
-      sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
-      setIsUnlocked(true);
-      setPasswordInput("");
-    };
-
-    const verifyWithServer = async () => {
-      const response = await fetch("/api/manage/verify-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: passwordInput }),
-      });
-      return response.ok;
-    };
-
-    if (signIn && user) {
-      const email = user.primaryEmailAddress?.emailAddress;
-      if (email) {
-        try {
-          const result = await signIn.create({
-            strategy: "password",
-            identifier: email,
-            password: passwordInput,
-            transfer: true,
-          });
-
-          if (result.status === "complete") {
-            unlock();
-            return;
-          }
-        } catch {
-          // Fall back to server-side verification below.
-        }
-      }
-    }
-
-    try {
-      if (await verifyWithServer()) {
-        unlock();
-      } else {
-        setGateError("Incorrect account password.");
-      }
-    } catch {
-      setGateError("Incorrect account password.");
-    }
-  };
 
   const createProfile = useMutation(api.profiles.createProfile);
   const updateProfile = useMutation(api.profiles.updateProfile);
@@ -367,35 +312,28 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
           <div className="mb-4 text-3xl">🛡️</div>
           <h1 className="text-2xl font-semibold text-zinc-100">Manage Profiles</h1>
           <p className="mt-2 text-sm text-zinc-300">
-            This gate protects profile settings, PIN controls, and deletion actions.
+            This area lets you edit profiles, set PINs, and control app access.
+            PIN protection for this page is coming in the next update.
           </p>
-
-          <form onSubmit={unlockGate} className="mt-5 space-y-3">
-            <input
-              type="password"
-              value={passwordInput}
-              onChange={event => setPasswordInput(event.target.value)}
-              className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-              placeholder="Account password"
-              required
-            />
-            {gateError ? <p className="text-sm text-red-400">{gateError}</p> : null}
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
-                onClick={() => router.push("/profiles")}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900"
-              >
-                Unlock
-              </button>
-            </div>
-          </form>
+          <div className="mt-5 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/profiles")}
+              className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
+                setIsUnlocked(true);
+              }}
+              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900"
+            >
+              Continue
+            </button>
+          </div>
         </div>
       </main>
     );
