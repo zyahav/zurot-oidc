@@ -93,11 +93,11 @@ async function run() {
   }
   pass("GET /");
 
-  const internalPage = await fetch(`${baseUrl}/internal`, { redirect: "manual" });
-  if (internalPage.status !== 200) {
-    fail(`/internal check failed: expected 200, got ${internalPage.status}`);
+  const profilesPage = await fetch(`${baseUrl}/profiles`, { redirect: "manual" });
+  if (profilesPage.status !== 200) {
+    fail(`/profiles check failed: expected 200, got ${profilesPage.status}`);
   }
-  pass("GET /internal");
+  pass("GET /profiles");
 
   const discovery = await getJson(
     `${baseUrl}/.well-known/openid-configuration`
