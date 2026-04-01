@@ -3,33 +3,45 @@
 ## Last Stable Point
 
 - Branch: `codex/root-signout-gate`
-- Current HEAD commit: `0ac286b`
+- Current HEAD commit: `683bb19`
 - Working tree: clean
 - QA: 14/14 passing
 
 ## What Was Completed This Session
 
-T-010 — three bug fixes, all verified:
+**T-010 — DONE** (commit 683bb19):
+1. Root `/` restored as smart redirect — no more 404
+2. Sign-out modal no longer persists after sign-in — hard redirect + close modal first
+3. Manage Profiles gate — honest placeholder (Continue button, no fake verification)
 
-1. Root `/` restored as smart redirect (was 404)
-2. Sign-out modal no longer persists after sign-in (hard redirect + close modal first)
-3. Manage Profiles gate now verifies against real Clerk account password
+**T-011 spec written** — `docs/implementation/t-011-spec.md`:
+- Account-level 4-digit PIN gate (Netflix model)
+- 30-minute session unlock
+- First-time setup flow
+- Recovery via server-side OTP + Resend (recovery only)
+- Status: PLANNED, ready for next session
+
+## Key decisions made this session
+
+**Gate approach:** Email OTP via Clerk client APIs does not work for re-authentication
+of an already-signed-in user. `signIn.create()` → 400 when authenticated.
+`emailAddress.prepareVerification()` → for email address change flows, not re-auth.
+Correct solution is account-level PIN (T-011), not any Clerk verification API.
+
+**Honest placeholder:** Gate currently shows "Continue" button with explanation.
+No fake security. No broken API calls. T-011 replaces this with real PIN system.
 
 ## Next Task
 
-Branch `codex/root-signout-gate` is ready to merge to `main`.
+**T-011** — Account PIN gate for Manage Profiles
+- Read `docs/implementation/t-011-spec.md` before starting
+- New branch: `codex/account-pin-gate`
+- New Convex table: `accountSettings` (ownerPinHash)
+- New dependency: Resend (for recovery OTP email only)
 
-Merge checklist:
-1. `make qa-run2` — confirm 14/14 one final time
-2. `make quality` — lint + build + smoke
-3. Merge to main
-4. Delete branch after merge
-5. Update BASELINE.md to reflect current routes and features
+## Resume Checklist
 
-## Resume Checklist (for new session)
-
-1. `git status` — confirm clean on `codex/root-signout-gate`
-2. `make dev` in one terminal
-3. `make qa-run2` — confirm 14/14
-4. `make quality` — confirm 0 errors
-5. Merge to main
+1. Merge `codex/root-signout-gate` → `main` first (T-010 complete)
+2. `make quality` before merging
+3. Start T-011 on new branch `codex/account-pin-gate`
+4. Read T-011 spec fully before writing any code
