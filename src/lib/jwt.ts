@@ -71,7 +71,6 @@ const keysReady = initializeKeys();
 export interface TokenPayload {
   profileId: string;
   displayName: string;
-  handle: string;
   role: string;
   userId: string;
   clientId: string;
@@ -87,7 +86,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
 
   const token = await new jose.SignJWT({
     name: payload.displayName,
-    preferred_username: payload.handle,
+    preferred_username: `profile_${payload.profileId}`,
     account_id: payload.accountId, // Required per OIDC spec v1.3
     scopes: payload.scopes || [], // Scopes array, format: ["product:permission"]
     "https://zurot.org/profile_context": {

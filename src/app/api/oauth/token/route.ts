@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
     const tokenPayload = {
       profileId: result.profileId,
       displayName: result.profile.displayName,
-      handle: result.profile.handle,
       role: result.profile.role,
       userId: result.userId,
       clientId,

@@ -15,10 +15,11 @@ import { api } from "../../../../convex/_generated/api";
 type Profile = {
   _id: string;
   handle: string;
-  displayName: string;
+  name: string;
+  emoji: string;
+  color: string;
+  hasPin: boolean;
   role: string;
-  status: string;
-  avatarUrl?: string;
 };
 
 function AuthorizePageContent() {
@@ -109,8 +110,6 @@ function AuthorizePageContent() {
   // Handle silent refresh (prompt=none)
   useEffect(() => {
     if (!isSilentRefresh || !isLoaded || silentRefreshAttempted.current) return;
-    
-    silentRefreshAttempted.current = true;
 
     // For silent refresh: if not signed in, return login_required error
     if (!isSignedIn) {
@@ -118,8 +117,12 @@ function AuthorizePageContent() {
       return;
     }
 
-    // Wait for profiles to load
+    // Wait for profiles to load — must check BEFORE setting ref
+    // so that when profiles arrive the effect can re-run and proceed
     if (profiles === undefined) return;
+
+    // Set ref only after profiles confirmed loaded — prevents premature lock-out
+    silentRefreshAttempted.current = true;
 
     // If no profiles, return interaction_required
     if (!profiles || profiles.length === 0) {
@@ -130,7 +133,7 @@ function AuthorizePageContent() {
     // If profile_hint is provided, try to use that profile
     if (profileHint) {
       const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
-      if (hintedProfile && hintedProfile.status === "active") {
+      if (hintedProfile) {
         selectProfile(hintedProfile._id);
         return;
       } else {
@@ -140,8 +143,8 @@ function AuthorizePageContent() {
       }
     }
 
-    // No profile_hint: if only one active profile, auto-select it
-    const activeProfiles = profiles.filter((p: Profile) => p.status === "active");
+    // No profile_hint: if only one profile, auto-select it
+    const activeProfiles = profiles;
     if (activeProfiles.length === 1) {
       selectProfile(activeProfiles[0]._id);
       return;
@@ -156,7 +159,7 @@ function AuthorizePageContent() {
     if (isSilentRefresh) return; // Handled above
     if (profileHint && profiles && isSignedIn) {
       const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
-      if (hintedProfile && hintedProfile.status === "active") {
+      if (hintedProfile) {
         selectProfile(hintedProfile._id);
       }
     }
@@ -228,14 +231,22 @@ function AuthorizePageContent() {
               <button
                 key={profile._id}
                 onClick={() => selectProfile(profile._id)}
-                disabled={isSubmitting || profile.status !== "active"}
+                disabled={isSubmitting}
                 className="group flex flex-col items-center rounded-lg p-4 transition hover:bg-zinc-800 disabled:opacity-50"
               >
-                <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-3xl font-bold text-white shadow-lg group-hover:scale-105 transition">
-                  {profile.displayName.charAt(0).toUpperCase()}
+                <div
+                  className="relative flex h-24 w-24 items-center justify-center rounded-2xl text-4xl shadow-lg transition group-hover:scale-105"
+                  style={{ background: profile.color }}
+                >
+                  {profile.emoji}
+                  {profile.hasPin ? (
+                    <span className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 text-xs">
+                      🔒
+                    </span>
+                  ) : null}
                 </div>
                 <div className="mt-3 text-center">
-                  <div className="font-semibold text-white">{profile.displayName}</div>
+                  <div className="font-semibold text-white">{profile.name}</div>
                   <div className="text-xs text-zinc-500">@{profile.handle}</div>
                   <div className="mt-1 text-[10px] uppercase text-zinc-600">{profile.role}</div>
                 </div>
@@ -248,7 +259,7 @@ function AuthorizePageContent() {
               <p className="text-zinc-400">No profiles found.</p>
               <p className="mt-2 text-sm text-zinc-500">
                 Create a profile first at{" "}
-                <Link href="/" className="text-blue-400 underline">zurot.org</Link>
+                <Link href="/profiles" className="text-blue-400 underline">/profiles</Link>
               </p>
             </div>
           )}

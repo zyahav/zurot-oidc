@@ -29,7 +29,7 @@ function base64UrlEncode(bytes: Uint8Array): string {
 }
 
 // Simple SHA256 implementation
-function sha256(message: string): Uint8Array {
+export function sha256(message: string): Uint8Array {
   // SHA256 constants
   const K = new Uint32Array([
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -204,14 +204,8 @@ export const consumeAuthorizationCode = mutation({
 
     // Get profile details
     const profile = await ctx.db.get(authCode.profileId);
-    if (!profile || profile.status !== "active") {
-      throw new Error("Profile not found or inactive");
-    }
-
-    // Get user details
-    const user = await ctx.db.get(profile.userId);
-    if (!user) {
-      throw new Error("User not found");
+    if (!profile) {
+      throw new Error("Profile not found");
     }
 
     // Mark code as consumed
@@ -221,12 +215,12 @@ export const consumeAuthorizationCode = mutation({
       profileId: authCode.profileId,
       profile: {
         _id: profile._id,
-        handle: profile.handle,
-        displayName: profile.displayName,
+        handle: `profile_${profile._id}`,
+        displayName: profile.name,
         role: profile.role,
-        avatarUrl: profile.avatarUrl,
+        avatarUrl: undefined,
       },
-      userId: user._id,
+      userId: profile.userId,
     };
   },
 });
@@ -239,16 +233,16 @@ export const getProfileForToken = query({
   handler: async (ctx, args) => {
     try {
       const profile = await ctx.db.get(args.profileId as Id<"profiles">);
-      if (!profile || profile.status !== "active") {
+      if (!profile) {
         return null;
       }
       return {
         _id: profile._id,
-        handle: profile.handle,
-        displayName: profile.displayName,
+        handle: `profile_${profile._id}`,
+        displayName: profile.name,
         role: profile.role,
-        avatarUrl: profile.avatarUrl,
-        status: profile.status,
+        avatarUrl: undefined,
+        status: "active",
       };
     } catch {
       return null;

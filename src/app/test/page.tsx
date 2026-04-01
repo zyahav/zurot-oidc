@@ -277,7 +277,7 @@ function TestPageContent() {
             <h2 className="text-lg font-semibold text-zinc-900">Current Active Profile</h2>
             {activeProfile ? (
               <div className="mt-3 rounded-lg bg-zinc-50 p-4">
-                <div className="font-semibold text-zinc-900">{activeProfile.displayName}</div>
+                <div className="font-semibold text-zinc-900">{activeProfile.name}</div>
                 <div className="text-sm text-zinc-600">@{activeProfile.handle}</div>
                 <div className="mt-2 font-mono text-xs text-zinc-500">
                   Profile ID: {activeProfile._id}
@@ -286,8 +286,8 @@ function TestPageContent() {
             ) : (
               <p className="mt-2 text-sm text-zinc-600">
                 No active profile. Go to{" "}
-                <Link href="/" className="text-blue-600 underline">
-                  home page
+                <Link href="/profiles" className="text-blue-600 underline">
+                  profiles
                 </Link>{" "}
                 to select one.
               </p>

@@ -11,25 +11,22 @@ export default defineSchema({
   }).index("by_clerk_id", ["clerkUserId"]),
 
   profiles: defineTable({
-    userId: v.id("users"),
-    accountId: v.optional(v.string()), // Legacy - kept for backwards compat
-    handle: v.string(),
-    displayName: v.string(),
-    role: v.string(),
-    avatarUrl: v.optional(v.string()),
-    status: v.union(
-      v.literal("active"),
-      v.literal("suspended"),
-      v.literal("archived")
+    userId: v.string(),
+    name: v.string(),
+    emoji: v.string(),
+    color: v.string(),
+    role: v.union(
+      v.literal("student"),
+      v.literal("parent"),
+      v.literal("teacher")
     ),
+    pinHash: v.optional(v.string()),
     createdAt: v.number(),
-  })
-    .index("by_user_id", ["userId"])
-    .index("by_handle", ["handle"]),
+  }).index("by_user", ["userId"]),
 
-  permissions: defineTable({
+  appPermissions: defineTable({
     profileId: v.id("profiles"),
-    key: v.string(),
+    appId: v.string(),
   }).index("by_profile", ["profileId"]),
 
   activities: defineTable({
@@ -47,10 +44,11 @@ export default defineSchema({
     .index("by_recency", ["createdAt"]),
 
   activeProfiles: defineTable({
-    userId: v.id("users"),
+    userId: v.string(),
+    sessionId: v.string(),
     profileId: v.id("profiles"),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  }).index("by_user_session", ["userId", "sessionId"]),
 
   authCodes: defineTable({
     code: v.string(),
