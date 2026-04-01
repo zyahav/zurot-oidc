@@ -8,6 +8,7 @@ const BASE_URL = process.env.ZUROT_BASE_URL || "http://localhost:3000";
 const OIDC_CLIENT_ID = "mall-hebrew-adventures";
 const OIDC_REDIRECT_URI = `${BASE_URL}/test`;
 const TEST_PIN = "1234";
+const TEST_ACCOUNT_PASSWORD = "QaRun2Pass1234";
 const MANAGE_GATE_SESSION_KEY = "zurot_manage_gate_unlocked";
 
 const results = [];
@@ -39,10 +40,7 @@ async function run() {
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey) throw new Error("Missing CLERK_SECRET_KEY in environment.");
 
-  const managePassword = process.env.NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD;
-  if (!managePassword) {
-    notes.push("NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD is not set; management-gate success checks will fail.");
-  }
+  const managePassword = TEST_ACCOUNT_PASSWORD;
 
   // @clerk/testing bootstrap — must happen before browser launch
   await clerkSetup();
@@ -52,7 +50,7 @@ async function run() {
   const email = `qa.run2.${stamp}@example.com`;
   const user = await clerkBackend.users.createUser({
     emailAddress: [email],
-    password: "QaRun2Pass1234",
+    password: TEST_ACCOUNT_PASSWORD,
     firstName: "QA", lastName: "Run2",
     skipPasswordChecks: true,
   });

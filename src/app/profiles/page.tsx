@@ -161,9 +161,11 @@ export default function ProfilesPage() {
   };
 
   const confirmSignOut = async () => {
+    setShowSignOutModal(false);
     setSignOutBusy(true);
     try {
-      await signOut({ redirectUrl: "/profiles" });
+      await signOut();
+      window.location.href = "/profiles";
     } finally {
       setSignOutBusy(false);
     }

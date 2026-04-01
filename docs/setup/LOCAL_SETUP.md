@@ -111,9 +111,7 @@ npm install playwright @clerk/testing --save-dev
 
 ### 9b. Required env vars for QA
 
-In addition to the standard `.env.local` keys, the QA runner requires:
-
-- `NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD` — the management dashboard gate password. Without this, all Step 4 management dashboard checks are skipped.
+No additional QA-specific env vars are required beyond the standard `.env.local` keys.
 
 ### 9c. How `@clerk/testing` works — do not deviate
 

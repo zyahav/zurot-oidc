@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
+import { SignInButton, useAuth, useClerk, useSignIn, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
@@ -15,8 +15,6 @@ import { HubProfile } from "@/lib/profile-types";
 import { AVATAR_PRESETS, ProfileRole, ROLE_BADGE_CLASSES, ROLE_LABEL, getRoleLabel } from "@/lib/profile-ui";
 
 const MANAGE_GATE_SESSION_KEY = "zurot_manage_gate_unlocked";
-const MANAGE_PASSWORD = process.env.NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD;
-
 type ActivityRecord = {
   _id: string;
   app: string;
@@ -44,6 +42,8 @@ const getActivityDuration = (activity: ActivityRecord, index: number) => {
 export function ManageDashboard({ initialProfileId }: { initialProfileId?: string }) {
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const { signIn } = useSignIn();
+  const { user } = useUser();
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
 
@@ -124,23 +124,55 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     setShowDeleteConfirm(false);
   }, [selectedProfile]);
 
-  const unlockGate = (event: FormEvent) => {
+  const unlockGate = async (event: FormEvent) => {
     event.preventDefault();
     setGateError(null);
 
-    if (!MANAGE_PASSWORD) {
-      setGateError("Manage password is not configured. Set NEXT_PUBLIC_ZUROT_MANAGE_PASSWORD.");
-      return;
+    const unlock = () => {
+      sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
+      setIsUnlocked(true);
+      setPasswordInput("");
+    };
+
+    const verifyWithServer = async () => {
+      const response = await fetch("/api/manage/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      return response.ok;
+    };
+
+    if (signIn && user) {
+      const email = user.primaryEmailAddress?.emailAddress;
+      if (email) {
+        try {
+          const result = await signIn.create({
+            strategy: "password",
+            identifier: email,
+            password: passwordInput,
+            transfer: true,
+          });
+
+          if (result.status === "complete") {
+            unlock();
+            return;
+          }
+        } catch {
+          // Fall back to server-side verification below.
+        }
+      }
     }
 
-    if (passwordInput !== MANAGE_PASSWORD) {
+    try {
+      if (await verifyWithServer()) {
+        unlock();
+      } else {
+        setGateError("Incorrect account password.");
+      }
+    } catch {
       setGateError("Incorrect account password.");
-      return;
     }
-
-    sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
-    setIsUnlocked(true);
-    setPasswordInput("");
   };
 
   const createProfile = useMutation(api.profiles.createProfile);
@@ -284,9 +316,11 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   };
 
   const confirmSignOut = async () => {
+    setShowSignOutModal(false);
     setSignOutBusy(true);
     try {
-      await signOut({ redirectUrl: "/profiles" });
+      await signOut();
+      window.location.href = "/profiles";
     } finally {
       setSignOutBusy(false);
     }
