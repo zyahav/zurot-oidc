@@ -8,21 +8,23 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Cloudflare Pages
+    name: Deploy to Vercel (auth.zurot.org)
     runs-on: ubuntu-latest
     # This environment has required reviewers configured in GitHub Settings.
-    # The job will pause here until a human approves — no code can bypass this.
+    # The job pauses here until a human approves — nothing can bypass this.
     environment: production
-    # Only run if the CI workflow passed — never deploy a failing build
+    # Only run if CI passed — never deploy a failing build
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     env:
+      # Public vars — also available in CI, not sensitive
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       ISSUER: ${{ secrets.ISSUER }}
-      RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
       RSA_PUBLIC_KEY: ${{ secrets.RSA_PUBLIC_KEY }}
+      # Production secrets — only available inside this protected environment
+      RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
 
@@ -39,12 +41,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for production
-        run: npm run build
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .next --project-name=${{ secrets.CF_PAGES_PROJECT_NAME }} --branch=main
+      - name: Pull Vercel environment (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build for production
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

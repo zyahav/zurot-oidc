@@ -1,8 +1,8 @@
-# T-012 Spec — Production Deploy Gate (GitHub + Cloudflare)
+# T-012 Spec — Production Deploy Gate (GitHub + Vercel)
 
 **Status:** APPROVED — ready for implementation
 **Branch:** `codex/prod-deploy-gate`
-**Spec References:** `WORKFLOW.md`, `DEV_PROTOCOL.md`
+**Platform:** Vercel (project: zurot-oidc, domain: auth.zurot.org)
 
 ---
 
@@ -10,8 +10,8 @@
 
 An agent (or anyone) can prepare code, pass CI, and queue a release —
 but cannot reach production without a human clicking Approve in GitHub.
-
 Production credentials never exist outside that protected boundary.
+Vercel never auto-deploys from git — GitHub Actions is the only deploy path.
 
 ---
 
@@ -20,119 +20,81 @@ Production credentials never exist outside that protected boundary.
 ```
 Push to main
     ↓
-CI workflow (existing) — lint + build + smoke
-    ↓ (on success)
-Deploy workflow (new) — waits at approval gate
-    ↓ (human clicks Approve in GitHub)
-Cloudflare Pages production deploy
+CI workflow (existing, unchanged) — lint + build + smoke
+    ↓ on success
+Deploy workflow (new) — pauses at GitHub environment approval gate
+    ↓ human clicks Approve
+Vercel CLI deploys to production (auth.zurot.org)
 ```
+
+---
+
+## What is NOT changing
+
+The existing `ci.yml` is not touched. It continues to run lint,
+build, and smoke checks on every PR and push to main automatically.
 
 ---
 
 ## Step 1 — Create GitHub protected environment
 
-In GitHub → Settings → Environments → New environment:
+GitHub → Settings → Environments → New environment:
 
 - Name: `production`
-- Required reviewers: add `zyahav` (the account owner)
-- Wait timer: 0 minutes (approve immediately or reject)
+- Required reviewers: `zyahav`
 - Deployment branches: restrict to `main` only
+- Prevent self-review: enabled
 
-This means any job that uses `environment: production` will pause
-and require manual approval before running.
+Secrets to add to this environment (NOT at repo level):
 
----
-
-## Step 2 — Move Cloudflare credentials to the environment
-
-Currently these secrets live at repo level (or nowhere).
-Move them to the `production` environment only — NOT at repo level:
-
-| Secret name | Value |
+| Secret | Description |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | A Cloudflare API token scoped to Pages deploy only |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
-| `CF_PAGES_PROJECT_NAME` | The Cloudflare Pages project name |
+| `VERCEL_TOKEN` | Vercel personal access token (create at vercel.com/account/tokens) |
+| `VERCEL_ORG_ID` | Found in Vercel project settings |
+| `VERCEL_PROJECT_ID` | Found in Vercel project settings |
+| `RSA_PRIVATE_KEY` | JWT signing key — production value only |
+| `CLERK_SECRET_KEY` | Clerk secret — production value only |
+| `CONVEX_DEPLOY_KEY` | Convex production deploy key |
+| `RESEND_API_KEY` | Resend API key — production value only |
 
-All other secrets (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, etc.) stay at
-repo level — they are needed by CI (build job) and are not sensitive
-enough to require environment protection.
+Secrets that stay at repo level (needed by CI on PRs):
+
+| Secret | Why repo level is OK |
+|---|---|
+| `NEXT_PUBLIC_CONVEX_URL` | Public, client-side, not sensitive |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Public, client-side, not sensitive |
+| `ISSUER` | OIDC issuer URL, not a credential |
+| `RSA_PUBLIC_KEY` | Public key, not sensitive |
 
 ---
 
-## Step 3 — Disable Cloudflare auto-deploy from git
+## Step 2 — Disable Vercel automatic deploys
 
-In Cloudflare Pages dashboard → your project → Settings → Builds & deployments:
-- Set production branch to `none` or disconnect the GitHub integration
-- Deploy will only happen via GitHub Actions, never via Cloudflare watching git
+Vercel dashboard → zurot-oidc project → Settings → Git:
+- Disable "Auto Deploy" for the production branch
+- This ensures Vercel never deploys on its own — only GitHub Actions can trigger it
+
+Without this step, every push to main would bypass the approval gate
+entirely because Vercel would deploy it directly.
 
 ---
 
-## Step 4 — Create `.github/workflows/deploy.yml`
+## Step 3 — Create `.github/workflows/deploy.yml`
 
-```yaml
-name: Deploy to Production
+Replace the existing `deploy.yml` with the Vercel version below.
 
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
+---
 
-jobs:
-  deploy:
-    name: Deploy to Cloudflare Pages
-    runs-on: ubuntu-latest
-    # This environment has required reviewers — job pauses until approved
-    environment: production
-    # Only run if CI passed
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+## Step 4 — Get Vercel IDs
 
-    env:
-      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-      ISSUER: ${{ secrets.ISSUER }}
-      RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
-      RSA_PUBLIC_KEY: ${{ secrets.RSA_PUBLIC_KEY }}
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-      RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+Run this once locally to get the project and org IDs:
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build for production
-        run: npm run build
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .next --project-name=${{ secrets.CF_PAGES_PROJECT_NAME }} --branch=main
+```bash
+npx vercel link
+cat .vercel/project.json
 ```
 
----
-
-## Security guarantees this provides
-
-| Threat | Protection |
-|---|---|
-| Agent pushes malicious code to main | CI runs on the push — if it fails, deploy never triggers |
-| Agent tries to reach production directly | `environment: production` blocks until human approves |
-| Credentials leaked via CI logs | Cloudflare credentials only injected inside the protected environment job |
-| Cloudflare auto-deploys bypass the gate | Disabled — Cloudflare does not watch git |
-| Someone runs the deploy workflow manually | Still requires environment approval |
+Copy `projectId` and `orgId` into the GitHub `production` environment secrets.
 
 ---
 
@@ -140,21 +102,23 @@ jobs:
 
 | File | Action |
 |---|---|
-| `.github/workflows/deploy.yml` | Create — production deploy workflow |
+| `.github/workflows/deploy.yml` | Replace with Vercel version |
 | `docs/implementation/t-012-spec.md` | This file |
 
-## Manual steps (cannot be done via code)
+## Manual steps (cannot be done in code)
 
 1. Create `production` environment in GitHub with required reviewers
-2. Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CF_PAGES_PROJECT_NAME` to that environment
-3. Disable Cloudflare auto-deploy from git in Cloudflare dashboard
+2. Add all production secrets to that environment
+3. Disable Vercel auto-deploy from git
+4. Run `npx vercel link` locally and save the IDs
 
 ---
 
 ## Definition of done
 
-- Push to main triggers CI automatically
+- Push to main triggers CI automatically (unchanged)
 - After CI passes, deploy workflow appears in GitHub Actions waiting for approval
-- Clicking Approve deploys to Cloudflare Pages production
+- Clicking Approve deploys to auth.zurot.org via Vercel CLI
 - Clicking Reject cancels the deploy
-- No path exists to production that bypasses the approval step
+- No push to any branch auto-deploys to production via Vercel
+- Production secrets are inaccessible to CI jobs and PR builds
