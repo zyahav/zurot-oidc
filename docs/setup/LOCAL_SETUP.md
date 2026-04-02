@@ -20,6 +20,8 @@ From BitWarden item `zurot-oidc / dev`, copy values for:
 - `NEXT_PUBLIC_APP_URL`
 - `RSA_PRIVATE_KEY`
 - `RSA_PUBLIC_KEY`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL` (optional; defaults to `onboarding@resend.dev`)
 
 Use full PEM values for RSA keys.
 

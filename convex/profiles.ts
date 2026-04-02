@@ -10,6 +10,8 @@ const PROFILE_ROLE = v.union(
 );
 
 const MAX_PROFILES_PER_USER = 10;
+const RECOVERY_OTP_TTL_MS = 10 * 60 * 1000;
+const RECOVERY_VERIFIED_TTL_MS = 10 * 60 * 1000;
 const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
   month: "short",
   year: "numeric",
@@ -65,6 +67,53 @@ const getUserAndSession = async (ctx: MutationCtx | QueryCtx) => {
   };
 };
 
+const getUserDocByClerkId = async (
+  ctx: MutationCtx | QueryCtx,
+  clerkUserId: string
+) => {
+  return await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", q => q.eq("clerkUserId", clerkUserId))
+    .first();
+};
+
+const getOrCreateUserDoc = async (ctx: MutationCtx) => {
+  const identity = await getIdentityOrThrow(ctx);
+  const existing = await getUserDocByClerkId(ctx, identity.subject);
+  if (existing) {
+    return existing;
+  }
+
+  const fallbackEmail =
+    typeof identity.email === "string" && identity.email.length > 0
+      ? identity.email
+      : `${identity.subject}@local.invalid`;
+
+  const userId = await ctx.db.insert("users", {
+    clerkUserId: identity.subject,
+    email: fallbackEmail,
+    createdAt: Date.now(),
+    lastLoginAt: Date.now(),
+  });
+
+  const created = await ctx.db.get(userId);
+  if (!created) {
+    throw new Error("Failed to initialize user record");
+  }
+
+  return created;
+};
+
+const getAccountSettingsByUserId = async (
+  ctx: MutationCtx | QueryCtx,
+  userId: Id<"users">
+) => {
+  return await ctx.db
+    .query("accountSettings")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .first();
+};
+
 const formatMonth = (timestamp: number): string => {
   return MONTH_FORMATTER.format(new Date(timestamp));
 };
@@ -73,14 +122,26 @@ const bytesToHex = (bytes: Uint8Array): string => {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 };
 
+const hashSecret = (value: string): string => {
+  return bytesToHex(sha256(value));
+};
+
 const hashPin = (pin: string): string => {
-  return bytesToHex(sha256(pin));
+  return hashSecret(pin);
 };
 
 const validatePin = (pin: string) => {
   if (!/^\d{4}$/.test(pin)) {
     throw new Error("PIN must be exactly 4 digits");
   }
+};
+
+const generateSixDigitOtp = (): string => {
+  let digits = "";
+  while (digits.length < 6) {
+    digits += crypto.randomUUID().replace(/\D/g, "");
+  }
+  return digits.slice(0, 6);
 };
 
 const assertOwnedProfile = async (
@@ -314,6 +375,141 @@ export const verifyProfilePin = query({
     }
 
     return hashPin(args.pin) === profile.pinHash;
+  },
+});
+
+export const getOwnerPin = query({
+  args: {
+    pin: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { hasPin: false, isValid: false };
+    }
+
+    const user = await getUserDocByClerkId(ctx, identity.subject);
+    if (!user) {
+      return { hasPin: false, isValid: false };
+    }
+
+    const settings = await getAccountSettingsByUserId(ctx, user._id);
+    if (!settings?.ownerPinHash) {
+      return { hasPin: false, isValid: false };
+    }
+
+    if (args.pin === undefined || !/^\d{4}$/.test(args.pin)) {
+      return { hasPin: true, isValid: false };
+    }
+
+    return {
+      hasPin: true,
+      isValid: hashPin(args.pin) === settings.ownerPinHash,
+    };
+  },
+});
+
+export const setOwnerPin = mutation({
+  args: {
+    pin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    validatePin(args.pin);
+
+    const user = await getOrCreateUserDoc(ctx);
+    const settings = await getAccountSettingsByUserId(ctx, user._id);
+    const now = Date.now();
+    const recoveryVerified =
+      settings?.recoveryOtpVerifiedAt !== undefined &&
+      now - settings.recoveryOtpVerifiedAt <= RECOVERY_VERIFIED_TTL_MS;
+
+    if (settings?.ownerPinHash && !recoveryVerified) {
+      throw new Error("PIN already set. Use Forgot PIN to reset.");
+    }
+
+    const updates = {
+      ownerPinHash: hashPin(args.pin),
+      recoveryOtpHash: undefined,
+      recoveryOtpExpiresAt: undefined,
+      recoveryOtpVerifiedAt: undefined,
+    };
+
+    if (settings) {
+      await ctx.db.patch(settings._id, updates);
+      return settings._id;
+    }
+
+    return await ctx.db.insert("accountSettings", {
+      userId: user._id,
+      ...updates,
+    });
+  },
+});
+
+export const generateRecoveryOtp = mutation({
+  args: {},
+  handler: async ctx => {
+    const user = await getOrCreateUserDoc(ctx);
+    const settings = await getAccountSettingsByUserId(ctx, user._id);
+    if (!settings?.ownerPinHash) {
+      throw new Error("No owner PIN set for this account.");
+    }
+
+    const otp = generateSixDigitOtp();
+    const now = Date.now();
+    const updates = {
+      recoveryOtpHash: hashSecret(otp),
+      recoveryOtpExpiresAt: now + RECOVERY_OTP_TTL_MS,
+      recoveryOtpVerifiedAt: undefined,
+    };
+
+    await ctx.db.patch(settings._id, updates);
+
+    return {
+      otp,
+      email: user.email,
+      expiresAt: now + RECOVERY_OTP_TTL_MS,
+    };
+  },
+});
+
+export const verifyRecoveryOtp = mutation({
+  args: {
+    otp: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await getIdentityOrThrow(ctx);
+    const user = await getUserDocByClerkId(ctx, identity.subject);
+    if (!user) {
+      throw new Error("User record not found.");
+    }
+
+    const settings = await getAccountSettingsByUserId(ctx, user._id);
+    if (!settings?.ownerPinHash || !settings.recoveryOtpHash || !settings.recoveryOtpExpiresAt) {
+      throw new Error("No recovery code found. Request a new code.");
+    }
+
+    const now = Date.now();
+    if (settings.recoveryOtpExpiresAt <= now) {
+      await ctx.db.patch(settings._id, {
+        recoveryOtpHash: undefined,
+        recoveryOtpExpiresAt: undefined,
+        recoveryOtpVerifiedAt: undefined,
+      });
+      throw new Error("Recovery code expired. Request a new code.");
+    }
+
+    if (!/^\d{6}$/.test(args.otp) || hashSecret(args.otp) !== settings.recoveryOtpHash) {
+      return { verified: false };
+    }
+
+    await ctx.db.patch(settings._id, {
+      recoveryOtpHash: undefined,
+      recoveryOtpExpiresAt: undefined,
+      recoveryOtpVerifiedAt: now,
+    });
+
+    return { verified: true };
   },
 });
 

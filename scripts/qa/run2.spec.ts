@@ -1,11 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { clerk, setupClerkTestingToken } from '@clerk/testing/playwright';
 import { createClerkClient } from '@clerk/backend';
+import {
+  goToProfiles,
+  unlockManageGate,
+  expectManageGateLocked,
+  switchProfileToProfiles,
+} from './test-utils';
 
 const OIDC_CLIENT_ID = 'mall-hebrew-adventures';
 const TEST_PIN = '1234';
 const TEST_ACCOUNT_PASSWORD = 'QaRun2Pass1234';
-const MANAGE_GATE_SESSION_KEY = 'zurot_manage_gate_unlocked';
 
 const BASE_URL = process.env.ZUROT_BASE_URL || 'http://localhost:3000';
 const OIDC_REDIRECT_URI = `${BASE_URL}/test`;
@@ -20,6 +25,51 @@ async function clickPin(page: import("@playwright/test").Page, pin: string) {
   }
 }
 
+async function ensureManageUnlocked(page: import("@playwright/test").Page) {
+  const setupLocator = page.getByText('Set up your owner PIN');
+  const pinEntryLocator = page.getByText('Enter your 4-digit owner PIN');
+  const unlockedLocator = page.getByRole('button', { name: '+ Add new profile', exact: true });
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    if (await unlockedLocator.isVisible().catch(() => false)) {
+      // Route remounts can briefly show unlocked UI before gate reappears.
+      // Require a short stable unlocked window before returning.
+      await page.waitForTimeout(350);
+      const setupVisible = await setupLocator.isVisible().catch(() => false);
+      const pinEntryVisible = await pinEntryLocator.isVisible().catch(() => false);
+      if (!setupVisible && !pinEntryVisible && (await unlockedLocator.isVisible().catch(() => false))) {
+        return;
+      }
+    }
+
+    if (await setupLocator.isVisible().catch(() => false)) {
+      const inputs = page.locator('input[inputmode="numeric"]');
+      await inputs.first().fill(TEST_PIN);
+      await inputs.nth(1).fill(TEST_PIN);
+      await page.getByRole('button', { name: 'Save PIN', exact: true }).click();
+      await unlockedLocator.waitFor({ timeout: 15000 });
+      return;
+    }
+
+    if (await pinEntryLocator.isVisible().catch(() => false)) {
+      const clear = page.getByRole('button', { name: 'Clear', exact: true });
+      if (await clear.isVisible().catch(() => false)) {
+        await clear.click().catch(() => {});
+      }
+      for (const digit of TEST_PIN) {
+        await page.getByRole('button', { name: digit, exact: true }).click();
+        await page.waitForTimeout(100);
+      }
+      await unlockedLocator.waitFor({ timeout: 15000 });
+      return;
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  throw new Error('Failed to unlock manage gate in place');
+}
+
 async function gotoManageWithRetry(page: import("@playwright/test").Page) {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -31,13 +81,6 @@ async function gotoManageWithRetry(page: import("@playwright/test").Page) {
       await page.waitForTimeout(1500);
     }
   }
-}
-
-async function unlockManageGateViaSessionStorage(page: import("@playwright/test").Page) {
-  await page.evaluate(key => sessionStorage.setItem(key, '1'), MANAGE_GATE_SESSION_KEY);
-  await gotoManageWithRetry(page);
-  await page.waitForLoadState('networkidle').catch(() => {});
-  await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 // Navigate to portal via profile card. Retries if guard redirects back.
@@ -122,7 +165,7 @@ test.beforeEach(async ({ page }) => {
   await setupClerkTestingToken({ page });
   await page.goto(`${BASE_URL}/profiles`);
   await clerk.signIn({ page, emailAddress: testEmail });
-  await page.waitForURL('**/profiles', { timeout: 15000 });
+  await goToProfiles(page);
   // Wait for Convex to receive and process the new session JWT.
   // We verify by waiting for the profile grid (or Add Profile card) to appear,
   // which means getProfiles() has executed successfully with the new session token.
@@ -178,24 +221,35 @@ test('Step 1 - Select non-PIN profile redirects to /portal', async ({ page }) =>
       await page.waitForTimeout(1200);
     }
   }
+
+  if (!rootResolvedToPortal) {
+    // Retry after re-selecting profile to refresh active-profile state.
+    await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' });
+    await enterPortalViaProfileCard(page, profileName);
+    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+    try {
+      await page.waitForURL('**/portal', { timeout: 12000 });
+      rootResolvedToPortal = true;
+    } catch {
+      // keep final assertion failure message consistent
+    }
+  }
+
   expect(rootResolvedToPortal).toBe(true);
 });
 
-test('Step 1 - Placeholder gate appears on /profiles/manage', async ({ page }) => {
+test('Step 1 - PIN gate appears on /profiles/manage', async ({ page }) => {
   await gotoManageWithRetry(page);
-  await expect(page.getByText('PIN protection for this page is coming in the next update.')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible({ timeout: 10000 });
+  // Test user has no PIN set yet, so setup screen appears
+  await expect(page.getByRole('button', { name: 'Save PIN', exact: true })).toBeVisible({ timeout: 10000 });
 });
 
-test('Step 1 - Placeholder gate actions (Cancel and Continue)', async ({ page }) => {
+test('Step 1 - PIN gate Cancel returns to /profiles', async ({ page }) => {
   await gotoManageWithRetry(page);
-  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible({ timeout: 10000 });
+  // Test user has no PIN set yet, so setup screen appears
+  await expect(page.getByRole('button', { name: 'Save PIN', exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page).toHaveURL(/\/profiles/, { timeout: 5000 });
-
-  await gotoManageWithRetry(page);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 10000 });
 });
 
 test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async ({ page }) => {
@@ -210,14 +264,14 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
   // Set PIN via manage
-  await unlockManageGateViaSessionStorage(page);
+  await unlockManageGate(page);
 
   // Navigate to the newly created profile — manage shows profiles[0] by default
   const profileLink = page.locator('aside a', { hasText: profileName }).first();
   await expect(profileLink).toBeVisible({ timeout: 10000 });
   await profileLink.click();
-  await page.waitForTimeout(800);
-  await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 5000 });
+  await ensureManageUnlocked(page);
+  await expect(page.getByText('PIN Lock', { exact: true })).toBeVisible({ timeout: 10000 });
 
   // Clear any existing PIN first to guarantee a clean Set PIN flow
   if ((await page.getByRole('button', { name: 'Remove', exact: true }).count()) > 0) {
@@ -226,11 +280,25 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
     await expect(page.getByRole('button', { name: 'Set PIN', exact: true })).toBeVisible({ timeout: 8000 });
   }
 
-  await page.getByRole('button', { name: 'Set PIN', exact: true }).click();
-  await page.getByPlaceholder('0000').fill(TEST_PIN);
-  await page.getByRole('button', { name: 'Save PIN', exact: true }).click();
+  let pinSaved = false;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await ensureManageUnlocked(page);
+    await page.getByRole('button', { name: 'Set PIN', exact: true }).click();
+    const savePinButton = page.getByRole('button', { name: 'Save PIN', exact: true });
+    await expect(savePinButton).toBeVisible({ timeout: 10000 });
+    await page.getByPlaceholder('0000').fill(TEST_PIN);
+    try {
+      await savePinButton.click({ timeout: 5000 });
+      pinSaved = true;
+      break;
+    } catch {
+      await page.waitForTimeout(600);
+    }
+  }
+  expect(pinSaved).toBe(true);
   // Wait for PIN input to disappear (mode returns to idle) — more reliable than brief toast
   await expect(page.getByPlaceholder('0000')).toBeHidden({ timeout: 10000 });
+  await ensureManageUnlocked(page);
   // Confirm PIN is now set — Remove button only appears when hasPin is true.
   await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible({ timeout: 10000 });
 
@@ -346,9 +414,7 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   await enterPortalViaProfileCard(page, profileName);
 
   await page.locator('header button').first().click();
-  await page.getByRole('button', { name: 'Switch profile', exact: true }).click();
-  await page.waitForURL('**/profiles', { timeout: 10000 });
-  expect(page.url()).toContain('/profiles');
+  await switchProfileToProfiles(page);
 
   // T-010 check: sign-out should hard-redirect, and modal must not persist after sign-in.
   await page.getByRole('button', { name: 'Sign out of account', exact: true }).click();
@@ -378,7 +444,7 @@ test('Step 2 - Disabled app removed from portal app grid', async ({ page }) => {
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await enterPortalViaProfileCard(page, profileName);
 
-  await unlockManageGateViaSessionStorage(page);
+  await unlockManageGate(page);
 
   const toggleRow = page.locator('section', { hasText: 'App Access' }).locator('div', { hasText: 'Mall Hebrew Adventures' }).first();
   const toggle = toggleRow.getByRole('button').first();
@@ -406,7 +472,7 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
   // Resolve a deterministic profile_hint from the manage sidebar.
   // This avoids relying solely on active-profile session state in prompt=none flows.
   let profileHint: string | null = null;
-  await unlockManageGateViaSessionStorage(page);
+  await unlockManageGate(page);
   const profileLink = page.locator('aside a', { hasText: profileName }).first();
   if ((await profileLink.count()) > 0) {
     const href = await profileLink.getAttribute('href');
@@ -478,18 +544,14 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
 
 // ─── Step 4: Management Dashboard ────────────────────────────────────────────
 
-test('Step 4 - Management placeholder gate appears', async ({ page }) => {
-  await page.evaluate(key => sessionStorage.removeItem(key), MANAGE_GATE_SESSION_KEY);
-  await gotoManageWithRetry(page);
-  await expect(page.getByText('PIN protection for this page is coming in the next update.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible({ timeout: 10000 });
+test('Step 4 - PIN gate appears on /profiles/manage', async ({ page }) => {
+  await expectManageGateLocked(page);
 });
 
-test('Step 4 - Placeholder gate Continue unlocks dashboard', async ({ page }) => {
-  await page.evaluate(key => sessionStorage.removeItem(key), MANAGE_GATE_SESSION_KEY);
-  await gotoManageWithRetry(page);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByText('Identity', { exact: true })).toBeVisible({ timeout: 10000 });
+test('Step 4 - PIN gate correct PIN unlocks dashboard', async ({ page }) => {
+  await unlockManageGate(page);
+  await expect(page.getByText('Manage Profiles', { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: '+ Add new profile', exact: true })).toBeVisible();
 });
 
 test('Step 4 - Full management dashboard flow', async ({ page }) => {
@@ -502,7 +564,7 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
-  await unlockManageGateViaSessionStorage(page);
+  await unlockManageGate(page);
 
   // Sidebar and right panel exist
   expect(await page.locator('aside').count()).toBeGreaterThan(0);
@@ -550,12 +612,19 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   // Navigate to the delete-me profile explicitly before deleting
   const deleteLink = page.locator('aside a', { hasText: deleteName }).first();
   if ((await deleteLink.count()) > 0) {
-    await deleteLink.click();
-    // Wait for the right panel to fully re-render for this profile.
-    // The useEffect(selectedProfile) resets showDeleteConfirm — must complete before clicking.
+    // Retry click — link can detach during React re-render of the sidebar
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await deleteLink.click({ timeout: 5000 });
+        break;
+      } catch {
+        await page.waitForTimeout(500);
+      }
+    }
     await page.waitForTimeout(1500);
-    await page.waitForTimeout(800);
   }
+  await ensureManageUnlocked(page);
+  await expect(page.getByRole('button', { name: 'Delete Profile', exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Delete Profile', exact: true }).click();
   // Inline confirmation renders — wait up to 8s for it to appear
   const yesDelete = page.getByRole('button', { name: 'Yes, delete', exact: true });
@@ -566,6 +635,7 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
     // Fallback when transient overlays intercept pointer events.
     await yesDelete.evaluate((el) => (el as HTMLButtonElement).click());
   }
+  await ensureManageUnlocked(page);
   await expect
     .poll(async () => sidebarLinks.count(), { timeout: 10000 })
     .toBe(preDeleteCount - 1);

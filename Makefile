@@ -76,7 +76,7 @@ qa-step4:
 	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Step 4"
 
 qa-manage:
-	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "placeholder gate|Continue unlocks dashboard|Full management"
+	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "PIN gate|Full management"
 
 qa-oidc:
 	npx --env-file=.env.local playwright test --config=playwright.config.ts --grep "Silent auth"

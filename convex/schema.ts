@@ -24,6 +24,14 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  accountSettings: defineTable({
+    userId: v.id("users"),
+    ownerPinHash: v.optional(v.string()),
+    recoveryOtpHash: v.optional(v.string()),
+    recoveryOtpExpiresAt: v.optional(v.number()),
+    recoveryOtpVerifiedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
+
   appPermissions: defineTable({
     profileId: v.id("profiles"),
     appId: v.string(),

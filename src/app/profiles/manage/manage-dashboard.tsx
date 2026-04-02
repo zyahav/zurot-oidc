@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
 import { AddProfileModal } from "@/components/zurot/add-profile-modal";
@@ -14,7 +14,8 @@ import { APP_CATALOG } from "@/lib/app-catalog";
 import { HubProfile } from "@/lib/profile-types";
 import { AVATAR_PRESETS, ProfileRole, ROLE_BADGE_CLASSES, ROLE_LABEL, getRoleLabel } from "@/lib/profile-ui";
 
-const MANAGE_GATE_SESSION_KEY = "zurot_manage_gate_unlocked";
+const OWNER_PIN_UNLOCK_MS = 30 * 60 * 1000;
+
 type ActivityRecord = {
   _id: string;
   app: string;
@@ -42,12 +43,27 @@ const getActivityDuration = (activity: ActivityRecord, index: number) => {
 export function ManageDashboard({ initialProfileId }: { initialProfileId?: string }) {
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const convex = useConvex();
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
+  const ownerPin = useQuery(api.profiles.getOwnerPin, {});
 
-  const [isUnlocked, setIsUnlocked] = useState(
-    () => typeof window !== "undefined" && sessionStorage.getItem(MANAGE_GATE_SESSION_KEY) === "1"
-  );
+  const [unlockedUntil, setUnlockedUntil] = useState<number | null>(null);
+  const [gatePinInput, setGatePinInput] = useState("");
+  const [gateError, setGateError] = useState<string | null>(null);
+  const [gateVerifying, setGateVerifying] = useState(false);
+  const [gateFailedAttempts, setGateFailedAttempts] = useState(0);
+  const [gateCooldownSeconds, setGateCooldownSeconds] = useState(0);
+  const [setupPinInput, setSetupPinInput] = useState("");
+  const [setupPinConfirm, setSetupPinConfirm] = useState("");
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSentMessage, setOtpSentMessage] = useState<string | null>(null);
+  const [recoveryVerified, setRecoveryVerified] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -98,6 +114,9 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     }));
   }, [activityRaw]);
 
+  const isUnlocked = unlockedUntil !== null && Date.now() < unlockedUntil;
+  const requiresSetup = ownerPin !== undefined && (!ownerPin.hasPin || recoveryVerified);
+
   const pushToast = (message: string) => {
     const toast = { id: crypto.randomUUID(), message };
     setToasts(current => [...current, toast]);
@@ -105,6 +124,36 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
       setToasts(current => current.filter(item => item.id !== toast.id));
     }, 2600);
   };
+
+  useEffect(() => {
+    if (unlockedUntil === null) {
+      return;
+    }
+
+    const msRemaining = unlockedUntil - Date.now();
+    if (msRemaining <= 0) {
+      setUnlockedUntil(null);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setUnlockedUntil(null);
+    }, msRemaining);
+
+    return () => clearTimeout(timeout);
+  }, [unlockedUntil]);
+
+  useEffect(() => {
+    if (gateCooldownSeconds <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setGateCooldownSeconds(current => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gateCooldownSeconds]);
 
   useEffect(() => {
     if (!selectedProfile) {
@@ -121,6 +170,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   }, [selectedProfile]);
 
   const createProfile = useMutation(api.profiles.createProfile);
+  const setOwnerPin = useMutation(api.profiles.setOwnerPin);
   const updateProfile = useMutation(api.profiles.updateProfile);
   const deleteProfile = useMutation(api.profiles.deleteProfile);
   const disableApp = useMutation(api.profiles.disableApp);
@@ -143,6 +193,141 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
       setSidebarMessage(error instanceof Error ? error.message : "Failed to create profile.");
     } finally {
       setCreateBusy(false);
+    }
+  };
+
+  const unlockManageGate = () => {
+    setUnlockedUntil(Date.now() + OWNER_PIN_UNLOCK_MS);
+    setGatePinInput("");
+    setGateError(null);
+    setGateFailedAttempts(0);
+    setGateCooldownSeconds(0);
+    setForgotMode(false);
+    setOtpInput("");
+    setOtpError(null);
+    setOtpSentMessage(null);
+  };
+
+  const verifyOwnerPin = async (pin: string) => {
+    if (gateVerifying || gateCooldownSeconds > 0) {
+      return;
+    }
+
+    setGateVerifying(true);
+    setGateError(null);
+    try {
+      const result = await convex.query(api.profiles.getOwnerPin, { pin });
+      if (result.isValid) {
+        unlockManageGate();
+        return;
+      }
+
+      const nextAttempt = gateFailedAttempts + 1;
+      if (nextAttempt >= 5) {
+        setGateCooldownSeconds(30);
+        setGateFailedAttempts(0);
+        setGateError("Too many failed attempts. Keypad disabled for 30 seconds.");
+      } else {
+        setGateFailedAttempts(nextAttempt);
+        setGateError("Incorrect PIN. Try again.");
+      }
+      setGatePinInput("");
+    } finally {
+      setGateVerifying(false);
+    }
+  };
+
+  const handleGateDigit = (digit: string) => {
+    if (gateVerifying || gateCooldownSeconds > 0 || gatePinInput.length >= 4) {
+      return;
+    }
+
+    const next = `${gatePinInput}${digit}`;
+    setGatePinInput(next);
+    setGateError(null);
+
+    if (next.length === 4) {
+      void verifyOwnerPin(next);
+    }
+  };
+
+  const saveOwnerPin = async () => {
+    if (!/^\d{4}$/.test(setupPinInput) || !/^\d{4}$/.test(setupPinConfirm)) {
+      setSetupError("PIN must be exactly 4 digits.");
+      return;
+    }
+
+    if (setupPinInput !== setupPinConfirm) {
+      setSetupError("PIN confirmation does not match.");
+      return;
+    }
+
+    setSetupBusy(true);
+    setSetupError(null);
+    try {
+      await setOwnerPin({ pin: setupPinInput });
+      setSetupPinInput("");
+      setSetupPinConfirm("");
+      setRecoveryVerified(false);
+      unlockManageGate();
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Failed to save owner PIN.");
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
+  const sendRecoveryOtp = async () => {
+    setOtpBusy(true);
+    setOtpError(null);
+    try {
+      const response = await fetch("/api/manage/send-recovery-otp", { method: "POST" });
+      const body = (await response.json()) as { error?: string; message?: string };
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to send recovery code.");
+      }
+      setForgotMode(true);
+      setOtpSentMessage(body.message ?? "Recovery code sent.");
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : "Failed to send recovery code.");
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const confirmRecoveryOtp = async () => {
+    if (!/^\d{6}$/.test(otpInput)) {
+      setOtpError("Recovery code must be exactly 6 digits.");
+      return;
+    }
+
+    setOtpBusy(true);
+    setOtpError(null);
+    try {
+      const response = await fetch("/api/manage/verify-recovery-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: otpInput }),
+      });
+      const body = (await response.json()) as { error?: string; message?: string };
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to verify recovery code.");
+      }
+
+      setRecoveryVerified(true);
+      setForgotMode(false);
+      setOtpInput("");
+      setOtpError(null);
+      setOtpSentMessage(null);
+      setGatePinInput("");
+      setGateError(null);
+      setGateFailedAttempts(0);
+      setGateCooldownSeconds(0);
+      pushToast(body.message ?? "Recovery code verified.");
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : "Failed to verify recovery code.");
+    } finally {
+      setOtpBusy(false);
     }
   };
 
@@ -306,34 +491,175 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   }
 
   if (!isUnlocked) {
+    if (ownerPin === undefined) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-200">
+          Loading security gate...
+        </main>
+      );
+    }
+
+    if (requiresSetup) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 text-3xl">🛡️</div>
+            <h1 className="text-2xl font-semibold text-zinc-100">Set up your owner PIN</h1>
+            <p className="mt-2 text-sm text-zinc-300">
+              Set up a PIN to protect this area.
+              {recoveryVerified ? " Recovery verified. Choose a new 4-digit PIN." : ""}
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-2 block text-sm text-zinc-300">4-digit PIN</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={setupPinInput}
+                  onChange={event => setSetupPinInput(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                  placeholder="0000"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm text-zinc-300">Confirm PIN</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={setupPinConfirm}
+                  onChange={event => setSetupPinConfirm(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                  placeholder="0000"
+                />
+              </div>
+            </div>
+
+            {setupError ? <p className="mt-3 text-sm text-red-400">{setupError}</p> : null}
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => router.push("/profiles")}
+                className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveOwnerPin()}
+                disabled={setupBusy}
+                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-60"
+              >
+                {setupBusy ? "Saving..." : "Save PIN"}
+              </button>
+            </div>
+          </div>
+        </main>
+      );
+    }
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
         <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
           <div className="mb-4 text-3xl">🛡️</div>
           <h1 className="text-2xl font-semibold text-zinc-100">Manage Profiles</h1>
           <p className="mt-2 text-sm text-zinc-300">
-            This area lets you edit profiles, set PINs, and control app access.
-            PIN protection for this page is coming in the next update.
+            Enter your 4-digit owner PIN to continue.
           </p>
-          <div className="mt-5 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/profiles")}
-              className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                sessionStorage.setItem(MANAGE_GATE_SESSION_KEY, "1");
-                setIsUnlocked(true);
-              }}
-              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900"
-            >
-              Continue
-            </button>
-          </div>
+
+          {!forgotMode ? (
+            <>
+              <div className="mt-4">
+                <ManagePinKeypad
+                  enteredPin={gatePinInput}
+                  verifying={gateVerifying}
+                  attemptsRemaining={Math.max(0, 5 - gateFailedAttempts)}
+                  cooldownSeconds={gateCooldownSeconds}
+                  errorMessage={gateError}
+                  onDigit={handleGateDigit}
+                  onBackspace={() => setGatePinInput(current => current.slice(0, -1))}
+                  onClear={() => {
+                    setGatePinInput("");
+                    setGateError(null);
+                  }}
+                />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/profiles")}
+                  className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void sendRecoveryOtp()}
+                  disabled={otpBusy}
+                  className="text-sm text-zinc-300 underline disabled:opacity-60"
+                >
+                  Forgot PIN?
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-4 rounded-xl border border-zinc-700 bg-zinc-950 p-4">
+                <p className="text-sm text-zinc-300">Enter the 6-digit recovery code sent to your email.</p>
+                {otpSentMessage ? <p className="mt-2 text-xs text-zinc-400">{otpSentMessage}</p> : null}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otpInput}
+                  onChange={event => setOtpInput(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                  placeholder="123456"
+                />
+                {otpError ? <p className="mt-2 text-sm text-red-400">{otpError}</p> : null}
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotMode(false);
+                      setOtpInput("");
+                      setOtpError(null);
+                    }}
+                    className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200"
+                  >
+                    Back
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void sendRecoveryOtp()}
+                      disabled={otpBusy}
+                      className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200 disabled:opacity-60"
+                    >
+                      Resend
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void confirmRecoveryOtp()}
+                      disabled={otpBusy}
+                      className="rounded-lg bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-900 disabled:opacity-60"
+                    >
+                      {otpBusy ? "Verifying..." : "Verify"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-start">
+                <button
+                  type="button"
+                  onClick={() => router.push("/profiles")}
+                  className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </main>
     );
@@ -724,6 +1050,99 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
         onConfirm={() => void confirmSignOut()}
       />
       <ToastStack toasts={toasts} />
+    </>
+  );
+}
+
+function ManagePinKeypad({
+  enteredPin,
+  verifying,
+  attemptsRemaining,
+  cooldownSeconds,
+  errorMessage,
+  onDigit,
+  onBackspace,
+  onClear,
+}: {
+  enteredPin: string;
+  verifying: boolean;
+  attemptsRemaining: number;
+  cooldownSeconds: number;
+  errorMessage: string | null;
+  onDigit: (digit: string) => void;
+  onBackspace: () => void;
+  onClear: () => void;
+}) {
+  const keypadDisabled = verifying || cooldownSeconds > 0;
+
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-center gap-2">
+        {[0, 1, 2, 3].map(index => (
+          <span
+            key={index}
+            className={`inline-flex h-3.5 w-3.5 rounded-full ${
+              index < enteredPin.length ? "bg-zinc-100" : "bg-zinc-700"
+            }`}
+          />
+        ))}
+      </div>
+
+      {cooldownSeconds > 0 ? (
+        <p className="mb-3 text-center text-sm text-amber-300">
+          Try again in {cooldownSeconds} seconds.
+        </p>
+      ) : (
+        <p className="mb-3 text-center text-xs text-zinc-400">
+          Attempts remaining: {attemptsRemaining}
+        </p>
+      )}
+
+      {errorMessage ? <p className="mb-3 text-center text-sm text-red-400">{errorMessage}</p> : null}
+
+      <div className="grid grid-cols-3 gap-2">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"].map(key => {
+          if (key === "clear") {
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={onClear}
+                disabled={keypadDisabled}
+                className="rounded-lg border border-zinc-700 bg-zinc-950 py-3 text-sm font-medium text-zinc-200 disabled:opacity-50"
+              >
+                Clear
+              </button>
+            );
+          }
+
+          if (key === "back") {
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={onBackspace}
+                disabled={keypadDisabled}
+                className="rounded-lg border border-zinc-700 bg-zinc-950 py-3 text-sm font-medium text-zinc-200 disabled:opacity-50"
+              >
+                ⌫
+              </button>
+            );
+          }
+
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onDigit(key)}
+              disabled={keypadDisabled}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 py-3 text-lg font-semibold text-zinc-100 disabled:opacity-50"
+            >
+              {key}
+            </button>
+          );
+        })}
+      </div>
     </>
   );
 }
