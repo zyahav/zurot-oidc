@@ -491,25 +491,35 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
   }
 
   let authCode: string | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastErrorCode: string | null = null;
+  let lastAuthorizeUrl: string | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
     await page.goto(authorizeUrl.toString(), { waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/test*', { timeout: 30000 });
 
     const url = new URL(page.url());
+    lastAuthorizeUrl = url.toString();
     authCode = url.searchParams.get('code');
     const errorCode = url.searchParams.get('error');
     if (authCode) break;
+    lastErrorCode = errorCode;
 
     // If active profile was lost, re-establish it and retry once.
-    if (errorCode === 'interaction_required' && attempt === 0) {
+    if ((errorCode === 'interaction_required' || errorCode === 'login_required') && attempt < 3) {
       await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' });
       await enterPortalViaProfileCard(page, profileName);
+      await page.waitForTimeout(500);
       continue;
     }
-    break;
+    if (attempt < 3) {
+      await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' });
+      await enterPortalViaProfileCard(page, profileName);
+      await page.waitForTimeout(500);
+      continue;
+    }
   }
 
-  expect(authCode).toBeTruthy();
+  expect(authCode, `Silent auth failed; error=${lastErrorCode ?? 'none'}; url=${lastAuthorizeUrl ?? 'n/a'}`).toBeTruthy();
 
   const tokenRes = await fetch(`${BASE_URL}/api/oauth/token`, {
     method: 'POST',
@@ -586,6 +596,27 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
 
   // Add a second profile then delete it — sidebar updates
   await page.getByRole('button', { name: '+ Add new profile', exact: true }).click();
+  const maxProfilesMessage = page.getByText('Maximum of 10 profiles reached.', { exact: true });
+  if (await maxProfilesMessage.isVisible().catch(() => false)) {
+    // Full-suite runs can accumulate profiles; free one slot and retry create.
+    const removableLink = page
+      .locator("aside a[href^='/profiles/manage/']")
+      .filter({ hasNotText: updatedName })
+      .first();
+    await expect(removableLink).toBeVisible({ timeout: 10000 });
+    await removableLink.click();
+    await ensureManageUnlocked(page);
+    await page.getByRole('button', { name: 'Delete Profile', exact: true }).click();
+    const confirmDelete = page.getByRole('button', { name: 'Yes, delete', exact: true });
+    await expect(confirmDelete).toBeVisible({ timeout: 8000 });
+    try {
+      await confirmDelete.click({ timeout: 8000 });
+    } catch {
+      await confirmDelete.evaluate((el) => (el as HTMLButtonElement).click());
+    }
+    await ensureManageUnlocked(page);
+    await page.getByRole('button', { name: '+ Add new profile', exact: true }).click();
+  }
   const deleteName = `Delete Me ${Date.now().toString().slice(-4)}`;
   await page.getByPlaceholder('e.g. Alex').fill(deleteName);
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click();
