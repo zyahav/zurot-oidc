@@ -48,6 +48,13 @@ export async function unlockManageGate(page: Page) {
     await inputs.first().fill(TEST_PIN);
     await inputs.nth(1).fill(TEST_PIN);
     await page.getByRole('button', { name: 'Save PIN', exact: true }).click();
+    await unlockedLocator.or(pinEntryLocator).waitFor({ timeout: 20000 });
+    if (await pinEntryLocator.isVisible().catch(() => false)) {
+      for (const digit of TEST_PIN) {
+        await page.getByRole('button', { name: digit, exact: true }).click();
+        await page.waitForTimeout(120);
+      }
+    }
     await unlockedLocator.waitFor({ timeout: 20000 });
     return;
   }
@@ -112,5 +119,5 @@ export async function switchProfileToProfiles(page: Page) {
     /\/profiles/
   );
 
-  await expect(page.getByText('Profiles')).toBeVisible();
+  await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible();
 }

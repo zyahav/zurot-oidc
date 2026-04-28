@@ -53,7 +53,7 @@ export default function RootPage() {
             Set up your account once, create protected profiles, and launch learning apps with the right permissions.
           </p>
 
-          <form onSubmit={onSubmit} className="mt-8 w-full max-w-2xl">
+          <form onSubmit={onSubmit} noValidate className="mt-8 w-full max-w-2xl">
             <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="email"

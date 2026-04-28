@@ -53,8 +53,14 @@ npm run build
 
 - `GET /internal` is the developer harness page for profile creation/management and phase checks.
 
+## Routing Model
+
+- `zurot.org` serves the public, email-first landing page.
+- `NEXT_PUBLIC_APP_URL` is the canonical app entrypoint for profile selection (for example, `http://localhost:3000` in dev or `https://app.zurot.org` in prod).
+- Profile flow continues at `/profiles` and `/portal` on the app entrypoint.
+
 ## CI/CD Status
 
 - CI workflow lives at `.github/workflows/ci.yml`
 - Current T-001 scope: lint + build on PR/push with required build-time secrets
-- Deployment target decision: Cloudflare Pages (not Vercel)
+- Production deploy gate workflow lives at `.github/workflows/deploy.yml` (Vercel + GitHub protected environment approval)

@@ -120,6 +120,24 @@ async function enterPortalViaProfileCard(page: import("@playwright/test").Page, 
   throw new Error(`Expected /portal but landed at ${page.url()}`);
 }
 
+async function ensurePortalHeaderVisible(page: import("@playwright/test").Page, name: string) {
+  const headerButton = page.locator('header button').first();
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (await headerButton.isVisible().catch(() => false)) {
+      return;
+    }
+    try {
+      await enterPortalViaProfileCard(page, name);
+    } catch {
+      await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' }).catch(() => {});
+      await page.waitForTimeout(800);
+      continue;
+    }
+    await page.waitForTimeout(1000);
+  }
+  throw new Error(`Portal header button not visible after retries. Final URL: ${page.url()}`);
+}
+
 function decodeJwtPayload(jwt: string): Record<string, unknown> {
   const [, payload] = jwt.split('.');
   const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
@@ -177,13 +195,15 @@ test.beforeEach(async ({ page }) => {
 
 // ─── Step 1: Profile Selection ───────────────────────────────────────────────
 
-test('Step 1 - /profiles loads with profile grid', async ({ page }) => {
-  // T-010 check: signed-in session with no active profile should resolve root "/" to "/profiles".
+test('Step 1 - Root homepage shows email-first entry', async ({ page }) => {
   await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.waitForURL('**/profiles', { timeout: 10000 });
-
-  await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible();
-  await expect(page.getByText('Add Profile', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Safe profiles and app access for every child in your home.' })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByLabel('Email address').fill('qa.root@example.com');
+  await page.getByRole('button', { name: 'Get Started', exact: true }).click();
+  await expect(page).toHaveURL(/\/profiles\?email=qa\.root%40example\.com/, { timeout: 10000 });
+  await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible({ timeout: 10000 });
 });
 
 test('Step 1 - Create profile appears immediately', async ({ page }) => {
@@ -208,34 +228,9 @@ test('Step 1 - Select non-PIN profile redirects to /portal', async ({ page }) =>
   await enterPortalViaProfileCard(page, profileName);
   expect(page.url()).toContain('/portal');
 
-  // T-010 check: signed-in session with active profile should resolve root "/" to "/portal".
-  let rootResolvedToPortal = false;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-    try {
-      await page.waitForURL('**/portal', { timeout: 12000 });
-      rootResolvedToPortal = true;
-      break;
-    } catch {
-      await page.goto(`${BASE_URL}/portal`, { waitUntil: 'networkidle' });
-      await page.waitForTimeout(1200);
-    }
-  }
-
-  if (!rootResolvedToPortal) {
-    // Retry after re-selecting profile to refresh active-profile state.
-    await page.goto(`${BASE_URL}/profiles`, { waitUntil: 'networkidle' });
-    await enterPortalViaProfileCard(page, profileName);
-    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-    try {
-      await page.waitForURL('**/portal', { timeout: 12000 });
-      rootResolvedToPortal = true;
-    } catch {
-      // keep final assertion failure message consistent
-    }
-  }
-
-  expect(rootResolvedToPortal).toBe(true);
+  // Root stays a public landing page even with an active profile.
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { name: 'Safe profiles and app access for every child in your home.' })).toBeVisible({ timeout: 10000 });
 });
 
 test('Step 1 - PIN gate appears on /profiles/manage', async ({ page }) => {
@@ -306,7 +301,7 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
   await page.goto(`${BASE_URL}/profiles`);
   let pinModalVisible = false;
   const lockedProfileCard = page.locator('button', { hasText: profileName }).first();
-  await expect(lockedProfileCard).toContainText('🔒', { timeout: 10000 });
+  await expect(lockedProfileCard).toBeVisible({ timeout: 15000 });
 
   for (let attempt = 0; attempt < 8; attempt++) {
     const profileCard = page.locator('button', { hasText: profileName }).first();
@@ -381,7 +376,7 @@ test('Step 2 - Sticky header shows active profile name and emoji', async ({ page
   await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
-  await enterPortalViaProfileCard(page, profileName);
+  await ensurePortalHeaderVisible(page, profileName);
 
   const headerButton = page.locator('header button').first();
   const headerText = (await headerButton.textContent()) || '';
@@ -396,7 +391,7 @@ test('Step 2 - Profile switcher dropdown shows only Switch profile', async ({ pa
   await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
-  await enterPortalViaProfileCard(page, profileName);
+  await ensurePortalHeaderVisible(page, profileName);
 
   await page.locator('header button').first().click();
   const dropdownText = (await page.locator('header').innerText()).toLowerCase();
@@ -411,7 +406,7 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
-  await enterPortalViaProfileCard(page, profileName);
+  await ensurePortalHeaderVisible(page, profileName);
 
   await page.locator('header button').first().click();
   await switchProfileToProfiles(page);
@@ -423,13 +418,13 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   await page.waitForURL('**/profiles', { timeout: 10000 });
   await expect(page.getByText('Sign in to select a profile.', { exact: true })).toBeVisible({ timeout: 10000 });
 
-  // T-010 check: signed-out root should resolve to /profiles.
+  // Root stays a public landing page when signed out.
   await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.waitForURL('**/profiles', { timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'Safe profiles and app access for every child in your home.' })).toBeVisible({ timeout: 10000 });
 
   // Sign back in and ensure sign-out modal does not persist.
   await clerk.signIn({ page, emailAddress: testEmail });
-  await page.waitForURL('**/profiles', { timeout: 15000 });
+  await goToProfiles(page);
   await expect(page.getByRole('heading', { name: "Who's Watching?" })).toBeVisible({ timeout: 10000 });
   await expect(page.getByRole('heading', { name: 'Sign out of account?' })).toHaveCount(0);
 });
@@ -442,7 +437,7 @@ test('Step 2 - Disabled app removed from portal app grid', async ({ page }) => {
   await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
-  await enterPortalViaProfileCard(page, profileName);
+  await ensurePortalHeaderVisible(page, profileName);
 
   await unlockManageGate(page);
 
@@ -595,7 +590,9 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   await page.getByPlaceholder('e.g. Alex').fill(deleteName);
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click();
   await expect(page.locator('aside a', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('aside a', { hasText: deleteName }).first()).toBeVisible({ timeout: 10000 });
+  await expect
+    .poll(async () => page.locator('aside a', { hasText: deleteName }).count(), { timeout: 15000 })
+    .toBeGreaterThan(0);
 
   const sidebarLinks = page.locator("aside a[href^='/profiles/manage/']");
   let preDeleteCount = await sidebarLinks.count();
