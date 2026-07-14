@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useClerk } from "@clerk/nextjs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
@@ -15,6 +16,7 @@ function buildProfilesUrl(email: string): string {
 }
 
 export default function RootPage() {
+  const { openSignIn, openSignUp } = useClerk();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +28,13 @@ export default function RootPage() {
       return;
     }
     setError(null);
-    window.location.assign(buildProfilesUrl(nextEmail));
+    openSignUp({
+      fallbackRedirectUrl: "/profiles",
+      forceRedirectUrl: "/profiles",
+      signInFallbackRedirectUrl: "/profiles",
+      signInForceRedirectUrl: "/profiles",
+      initialValues: { emailAddress: nextEmail },
+    });
   };
 
   return (
@@ -38,7 +46,17 @@ export default function RootPage() {
         <div className="mb-10 flex items-center justify-between">
           <p className="text-xl font-bold tracking-[0.26em] text-zinc-50">ZUROT</p>
           <a
-            href={buildProfilesUrl("")}
+            href="/profiles"
+            onClick={event => {
+              event.preventDefault();
+              openSignIn({
+                fallbackRedirectUrl: "/profiles",
+                forceRedirectUrl: "/profiles",
+                signUpFallbackRedirectUrl: "/profiles",
+                signUpForceRedirectUrl: "/profiles",
+                initialValues: email.trim() ? { emailAddress: email.trim().toLowerCase() } : undefined,
+              });
+            }}
             className="rounded-md border border-zinc-400/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-100 hover:bg-zinc-100 hover:text-zinc-900"
           >
             Sign in
