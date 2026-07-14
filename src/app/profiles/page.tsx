@@ -16,7 +16,7 @@ import { getRoleLabel } from "@/lib/profile-ui";
 
 export default function ProfilesPage() {
   const { isLoaded, isSignedIn } = useAuth();
-  const { signOut } = useClerk();
+  const { openSignIn, signOut } = useClerk();
   const convex = useConvex();
   const profiles = useQuery(api.profiles.getProfiles, {});
   const setActiveProfile = useMutation(api.profiles.setActiveProfile);
@@ -33,9 +33,29 @@ export default function ProfilesPage() {
   const [pinVerifying, setPinVerifying] = useState(false);
   const [pinFailedAttempts, setPinFailedAttempts] = useState(0);
   const [pinCooldownSeconds, setPinCooldownSeconds] = useState(0);
+  const [emailParam, setEmailParam] = useState("");
 
   const profileList = useMemo(() => (profiles ?? []) as HubProfile[], [profiles]);
   const canAddProfile = profileList.length < 10;
+
+  useEffect(() => {
+    const email = new URLSearchParams(window.location.search).get("email")?.trim().toLowerCase() ?? "";
+    setEmailParam(email);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded || isSignedIn || !emailParam || !emailParam.includes("@")) {
+      return;
+    }
+
+    openSignIn({
+      fallbackRedirectUrl: "/profiles",
+      forceRedirectUrl: "/profiles",
+      signUpFallbackRedirectUrl: "/profiles",
+      signUpForceRedirectUrl: "/profiles",
+      initialValues: { emailAddress: emailParam },
+    });
+  }, [emailParam, isLoaded, isSignedIn, openSignIn]);
 
   useEffect(() => {
     if (pinCooldownSeconds <= 0) {
