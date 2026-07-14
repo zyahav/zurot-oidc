@@ -22,6 +22,37 @@ type Profile = {
   role: string;
 };
 
+const PKCE_STORAGE_PREFIX = "zurot_pkce_";
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function generateCodeVerifier(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function createPkcePair(): Promise<{
+  verifier: string;
+  challenge: string;
+}> {
+  const verifier = generateCodeVerifier();
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier)
+  );
+  return {
+    verifier,
+    challenge: base64UrlEncode(new Uint8Array(digest)),
+  };
+}
+
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
@@ -38,13 +69,17 @@ function AuthorizePageContent() {
   const state = searchParams.get("state");
   const profileHint = searchParams.get("profile_hint");
   const prompt = searchParams.get("prompt");
+  const clientValidation = useQuery(
+    api.oauth.validateClient,
+    clientId && redirectUri ? { clientId, redirectUri } : "skip"
+  );
 
   // Check if this is a silent refresh request
   const isSilentRefresh = prompt === "none";
 
   // Helper to redirect with error (OIDC-compliant)
   const redirectWithError = useCallback((errorCode: string, errorDescription: string) => {
-    if (!redirectUri || !state) {
+    if (!redirectUri || !state || clientValidation?.valid !== true) {
       setError(`${errorCode}: ${errorDescription}`);
       return;
     }
@@ -53,7 +88,7 @@ function AuthorizePageContent() {
     redirectUrl.searchParams.set("error_description", errorDescription);
     redirectUrl.searchParams.set("state", state);
     window.location.href = redirectUrl.toString();
-  }, [redirectUri, state]);
+  }, [clientValidation, redirectUri, state]);
 
   const selectProfile = useCallback(async (profileId: string) => {
     if (!clientId || !redirectUri || !state) {
@@ -65,14 +100,29 @@ function AuthorizePageContent() {
       return;
     }
 
+    if (clientValidation?.valid !== true) {
+      setError(clientValidation?.error || "Invalid OAuth client or redirect URI");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
+      const { verifier, challenge } = await createPkcePair();
+      sessionStorage.setItem(`${PKCE_STORAGE_PREFIX}${state}`, verifier);
+
       const response = await fetch("/api/oauth/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, clientId, redirectUri, state }),
+        body: JSON.stringify({
+          profileId,
+          clientId,
+          redirectUri,
+          state,
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        }),
       });
 
       const data = await response.json();
@@ -94,7 +144,7 @@ function AuthorizePageContent() {
         setIsSubmitting(false);
       }
     }
-  }, [clientId, redirectUri, state, isSilentRefresh, redirectWithError]);
+  }, [clientId, clientValidation, redirectUri, state, isSilentRefresh, redirectWithError]);
 
   // Validate OAuth parameters
   useEffect(() => {
@@ -107,9 +157,21 @@ function AuthorizePageContent() {
     }
   }, [clientId, redirectUri, responseType, isSilentRefresh, redirectWithError, state]);
 
+  useEffect(() => {
+    if (!clientId || !redirectUri || clientValidation === undefined) return;
+    if (!clientValidation.valid) {
+      setError(clientValidation.error || "Invalid OAuth client or redirect URI");
+    }
+  }, [clientId, clientValidation, redirectUri]);
+
   // Handle silent refresh (prompt=none)
   useEffect(() => {
     if (!isSilentRefresh || !isLoaded || silentRefreshAttempted.current) return;
+    if (clientId && redirectUri && clientValidation === undefined) return;
+    if (clientId && redirectUri && clientValidation?.valid !== true) {
+      setError(clientValidation?.error || "Invalid OAuth client or redirect URI");
+      return;
+    }
 
     // For silent refresh: if not signed in, return login_required error
     if (!isSignedIn) {
@@ -152,18 +214,19 @@ function AuthorizePageContent() {
 
     // Multiple profiles and no hint: user interaction required
     redirectWithError("interaction_required", "Multiple profiles available, user must select");
-  }, [isSilentRefresh, isLoaded, isSignedIn, profiles, profileHint, selectProfile, redirectWithError]);
+  }, [clientId, clientValidation, isSilentRefresh, isLoaded, isSignedIn, profiles, profileHint, redirectUri, selectProfile, redirectWithError]);
 
   // Auto-select profile if profile_hint is valid (non-silent mode)
   useEffect(() => {
     if (isSilentRefresh) return; // Handled above
+    if (clientId && redirectUri && clientValidation?.valid !== true) return;
     if (profileHint && profiles && isSignedIn) {
       const hintedProfile = profiles.find((p: Profile) => p._id === profileHint);
       if (hintedProfile) {
         selectProfile(hintedProfile._id);
       }
     }
-  }, [profileHint, profiles, isSignedIn, isSilentRefresh, selectProfile]);
+  }, [clientId, clientValidation, redirectUri, profileHint, profiles, isSignedIn, isSilentRefresh, selectProfile]);
 
   if (!isLoaded) {
     return (

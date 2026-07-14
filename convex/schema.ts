@@ -65,14 +65,18 @@ export default defineSchema({
     redirectUri: v.string(),
     expiresAt: v.number(),
     consumed: v.boolean(),
-    // PKCE support
     codeChallenge: v.optional(v.string()),
-    codeChallengeMethod: v.optional(v.string()),
+    codeChallengeMethod: v.optional(v.literal("S256")),
   }).index("by_code", ["code"]),
 
   oauthClients: defineTable({
     clientId: v.string(),
     clientSecret: v.optional(v.string()),
+    clientSecretHash: v.optional(v.string()),
+    clientSecretSalt: v.optional(v.string()),
+    tokenEndpointAuthMethod: v.optional(
+      v.union(v.literal("none"), v.literal("client_secret_post"))
+    ),
     redirectUris: v.array(v.string()),
     backchannelLogoutUri: v.optional(v.string()),
   }).index("by_client_id", ["clientId"]),

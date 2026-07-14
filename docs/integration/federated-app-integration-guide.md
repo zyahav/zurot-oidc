@@ -1,195 +1,272 @@
-# ZurOt – Federated App Integration Guide
+# ZurOt Federated App Integration Guide
 
-**Status:** REQUIRED FOR ALL APPS
-**Depends on:**
-- _ZurOt – Core Identity & Federation Spec (Frozen)_
-- _ZurOt – Phase 0 Hub Implementation Guide_
+**Status:** Required for all ZurOt apps  
+**Audience:** App developers integrating `meta.zurot.org`, `phone.zurot.org`, or any future ZurOt subdomain app.
 
-This document defines **how any app integrates with ZurOt**.
-If an app violates these rules, it is not a ZurOt app.
+ZurOt apps are consumers of identity. They do not own login, profiles, profile switching, or account management. Those responsibilities stay in ZurOt OIDC / Hub.
 
----
+## Production Domains
 
-## 1. Purpose
+Use this domain model for production:
 
-ZurOt is a **federated platform**.
+| Domain | Purpose |
+| --- | --- |
+| `https://zurot.org` | Public landing page |
+| `https://app.zurot.org` | Hub UI: profiles, portal, app launcher, manage profiles |
+| `https://auth.zurot.org` | OIDC issuer and auth endpoints |
+| `https://meta.zurot.org` | Federated client app |
+| `https://phone.zurot.org` | Federated client app |
 
-Apps are consumers of identity — never authorities.
+The OIDC issuer is:
 
-This guide prevents:
-- Identity shortcuts
-- Profile leakage
-- OSS misconfiguration
-- Permission drift
-
----
-
-## Token Contract Reference
-
-Before implementing auth in any federated app, read `docs/architecture/token-contract.md`.
-The JWT claim for permissions is `scopes` (array), not `scope` (string).
-
----
-
-## 2. What an App Is (and Is Not)
-
-### An App IS
-- A standalone service
-- Deployed on its own subdomain
-- Authenticated via OIDC
-
-### An App IS NOT
-- An identity provider
-- A profile manager
-- A Clerk client
-
----
-
-## 3. Authentication Flow (Mandatory)
-
-Every app must:
-
-1. Redirect unauthenticated users to ZurOt IdP
-2. Complete standard OIDC Authorization Code flow
-3. Receive an ID token + access token
-
-Apps must never:
-- Accept direct login
-- Authenticate via Clerk
-
----
-
-## 4. Identity Rules (Critical)
-
-### Subject Rule
-
-- The OIDC `sub` claim **IS the profileId**
-- Treat `sub` as the unique user key
-
-Apps must not:
-- Attempt to derive userId
-- Assume multiple profiles per `sub`
-
----
-
-## 5. Data Ownership Rules
-
-All app data:
-- Must be owned by `profileId`
-- Must be keyed by `sub`
-
-Forbidden ownership keys:
-- Clerk userId
-- Email
-- Session ID
-
----
-
-## 6. Permissions Handling
-
-- Permissions arrive via token claims
-- Apps enforce permissions locally
-
-### Sensitive Actions
-For sensitive actions (minors, moderation, admin):
-- Apps SHOULD re-validate permissions via Hub API
-
----
-
-## 7. Profile Switching
-
-- Profile switching = re-authentication
-- App must discard token and restart OIDC
-
-Apps must not:
-- Allow in-app profile switching
-- Cache profile assumptions
-
----
-
-## 8. URL & Handle Resolution
-
-Handles (`@name`) are presentation only.
-
-Apps must resolve handles via:
-
-```
-GET https://zurot.org/profiles/resolve?handle=@name
+```text
+https://auth.zurot.org
 ```
 
-Apps must never:
-- Resolve handles locally
+Apps should discover endpoints from:
 
----
+```text
+https://auth.zurot.org/.well-known/openid-configuration
+```
 
-## 9. Activity Feed Emission (Mandatory)
+Current provider endpoints:
 
-Apps must emit activity metadata on write.
+```text
+GET  https://auth.zurot.org/oauth/authorize
+POST https://auth.zurot.org/api/oauth/token
+GET  https://auth.zurot.org/api/oauth/userinfo
+GET  https://auth.zurot.org/.well-known/jwks.json
+```
 
-### Required Schema
+## App Registration
+
+Before an app can authenticate through ZurOt, it must be registered as an OAuth client in the ZurOt Convex `oauthClients` table.
+
+For `meta.zurot.org`:
+
+```text
+client_id: meta
+redirect_uri: https://meta.zurot.org/auth/callback
+token_endpoint_auth_method: none
+```
+
+For `phone.zurot.org`:
+
+```text
+client_id: phone
+redirect_uri: https://phone.zurot.org/auth/callback
+token_endpoint_auth_method: none
+```
+
+Browser apps are public clients. They must not store a client secret. Use Authorization Code with PKCE when the client framework supports it.
+
+Exact redirect URI matching is enforced. If an app uses a staging or local callback URL, that exact URL must also be registered.
+
+Examples:
+
+```text
+https://staging-meta.zurot.org/auth/callback
+http://localhost:5173/auth/callback
+http://localhost:3000/auth/callback
+```
+
+## Required App Configuration
+
+Each app should have environment variables like:
+
+```bash
+ZUROT_OIDC_ISSUER=https://auth.zurot.org
+ZUROT_CLIENT_ID=meta
+ZUROT_REDIRECT_URI=https://meta.zurot.org/auth/callback
+ZUROT_POST_LOGOUT_REDIRECT_URI=https://meta.zurot.org
+```
+
+Use `phone` and `https://phone.zurot.org/auth/callback` for the phone app.
+
+If a framework expects standard OIDC names, use:
+
+```bash
+OIDC_ISSUER=https://auth.zurot.org
+OIDC_CLIENT_ID=meta
+OIDC_REDIRECT_URI=https://meta.zurot.org/auth/callback
+```
+
+## Authentication Flow
+
+Unauthenticated users must be sent to ZurOt:
+
+```text
+https://auth.zurot.org/oauth/authorize
+  ?response_type=code
+  &client_id=meta
+  &redirect_uri=https%3A%2F%2Fmeta.zurot.org%2Fauth%2Fcallback
+  &scope=openid%20profile
+  &state=<random-state>
+  &code_challenge=<pkce-code-challenge>
+  &code_challenge_method=S256
+```
+
+ZurOt will handle account login and profile selection. After success, ZurOt redirects back:
+
+```text
+https://meta.zurot.org/auth/callback?code=<authorization-code>&state=<same-state>
+```
+
+The app then exchanges the code:
+
+```http
+POST https://auth.zurot.org/api/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=<authorization-code>
+&client_id=meta
+&redirect_uri=https%3A%2F%2Fmeta.zurot.org%2Fauth%2Fcallback
+&code_verifier=<pkce-code-verifier>
+```
+
+The response includes:
+
 ```json
 {
-  "activityId": "uuid",
-  "ownerProfileId": "profileId",
-  "app": "app-name",
-  "type": "event.type",
-  "title": "string",
-  "thumbnailUrl": "optional",
-  "deepLink": "url",
-  "createdAt": "timestamp"
+  "access_token": "...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "id_token": "..."
 }
 ```
 
-Feed writes go to the Hub.
-Apps never read from other apps.
+Tokens expire after 15 minutes.
 
----
+## Token Contract
 
-## 10. OSS-Specific Guidance
+Read the canonical contract in `docs/architecture/token-contract.md`.
 
-When integrating OSS (e.g. LobeChat):
+Important rules:
 
-- Use standard OIDC configuration
-- Map `sub` to the app’s user table
-- Map roles/permissions to expected claims
+| Claim | Meaning |
+| --- | --- |
+| `iss` | `https://auth.zurot.org` in production |
+| `aud` | The app `client_id`, for example `meta` |
+| `sub` | The selected profile identity, formatted as `profile_<profileId>` |
+| `name` | Profile display name |
+| `preferred_username` | Profile username/handle |
+| `account_id` | Human account metadata, not the app user key |
+| `scopes` | ZurOt permissions array |
+| `https://zurot.org/profile_context` | Profile metadata |
 
-Do NOT:
-- Fork auth logic
-- Rewrite user models
+Apps must key user data by `sub`.
 
----
+Do not key app data by:
 
-## 11. Security & Logout
+- Clerk user ID
+- Email
+- Browser session ID
+- `account_id`
 
-- Apps must validate JWT signatures via JWKS
-- Apps must honor token expiry
+`account_id` identifies the human account layer. It is useful metadata, but app-owned records belong to the selected profile `sub`.
 
-### Back-Channel Logout
+## Permission Handling
 
-When notified by Hub:
-- Immediately invalidate sessions
+ZurOt sends permissions in `scopes` as an array.
 
----
+Example:
 
-## 12. Failure Modes (What Not To Do)
+```json
+{
+  "scopes": ["hub:profile:read", "hub:profile:update"]
+}
+```
 
-If an app:
-- Stores data by userId
-- Allows implicit profile switching
-- Bypasses OIDC
+Apps must read `scopes`, not the standard OIDC `scope` string.
 
-Then the app is non-compliant.
+Current implementation note: product-specific scope mapping exists for known products such as `mall-hebrew-adventures`. New clients like `meta` and `phone` may initially receive default hub scopes until the translation engine maps those client IDs to their products.
 
----
+## Validating Tokens
 
-## 13. Definition of Compliance
+Apps must validate JWTs using the ZurOt JWKS:
 
-An app is compliant when:
+```text
+https://auth.zurot.org/.well-known/jwks.json
+```
 
-- All data is keyed by `sub`
-- All auth is via OIDC
-- No profile logic exists in the app
+Validation requirements:
 
----
+- Algorithm: `RS256`
+- Issuer: `https://auth.zurot.org`
+- Audience: the app `client_id`
+- Expiration: must be honored
+- Subject: must start with `profile_`
 
-End of Federated App Integration Guide.
+Apps may call userinfo with the access token:
+
+```http
+GET https://auth.zurot.org/api/oauth/userinfo
+Authorization: Bearer <access_token>
+```
+
+## Profile Switching
+
+Profile switching is re-authentication.
+
+If a user wants to switch profile, the app should discard local tokens/session state and restart the OIDC authorize flow. Apps must not implement their own profile switcher.
+
+## Logout
+
+For now, apps should treat logout as local token/session cleanup.
+
+Previously issued ZurOt tokens remain valid until their natural 15-minute expiration. Back-channel logout is an architecture goal, but app developers should not depend on it until this provider exposes and documents that production hook.
+
+## What Apps Must Not Do
+
+Apps must not:
+
+- Use Clerk directly
+- Ask users to log in directly inside the app
+- Create or edit ZurOt profiles
+- Store app data by email or account ID
+- Let users switch profiles locally
+- Trust unvalidated JWTs
+- Invent permissions outside the `scopes` array
+
+## Current Gaps To Coordinate With ZurOt
+
+Before `meta` or `phone` goes live, coordinate these with the ZurOt provider:
+
+- Register the app's `client_id` and exact redirect URI.
+- Add product-specific scope mapping if the app needs non-hub permissions.
+- Confirm local/staging callback URLs.
+- Confirm whether the app is SPA-only or has a backend callback handler.
+- Confirm production `ISSUER=https://auth.zurot.org`.
+
+Handle resolution and activity-feed APIs are planned platform capabilities, but they are not currently documented as implemented provider endpoints. Do not build against those APIs until a concrete endpoint contract is published.
+
+## Minimal Handoff For Meta Dev
+
+```text
+Use ZurOt OIDC.
+Issuer: https://auth.zurot.org
+Client ID: meta
+Redirect URI: https://meta.zurot.org/auth/callback
+Flow: Authorization Code with PKCE
+Discovery: https://auth.zurot.org/.well-known/openid-configuration
+JWKS: https://auth.zurot.org/.well-known/jwks.json
+User key: JWT sub
+Permissions: JWT scopes array
+Do not use Clerk directly.
+```
+
+## Minimal Handoff For Phone Dev
+
+```text
+Use ZurOt OIDC.
+Issuer: https://auth.zurot.org
+Client ID: phone
+Redirect URI: https://phone.zurot.org/auth/callback
+Flow: Authorization Code with PKCE
+Discovery: https://auth.zurot.org/.well-known/openid-configuration
+JWKS: https://auth.zurot.org/.well-known/jwks.json
+User key: JWT sub
+Permissions: JWT scopes array
+Do not use Clerk directly.
+```

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { convexServer } from "@/lib/convex-server";
 import { api } from "../../../../../convex/_generated/api";
-import { verifyToken } from "@/lib/jwt";
+import { decodeToken, verifyToken } from "@/lib/jwt";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,8 +26,27 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
 
+    const decoded = decodeToken(token);
+    const audience = decoded?.aud;
+    if (typeof audience !== "string") {
+      return NextResponse.json(
+        { error: "invalid_token" },
+        { status: 401, headers: CORS_HEADERS }
+      );
+    }
+
+    const audienceValidation = await convexServer.query(api.oauth.validateAudience, {
+      clientId: audience,
+    });
+    if (!audienceValidation.valid) {
+      return NextResponse.json(
+        { error: "invalid_token" },
+        { status: 401, headers: CORS_HEADERS }
+      );
+    }
+
     // Verify and decode token
-    const payload = await verifyToken(token);
+    const payload = await verifyToken(token, audience);
     if (!payload || !payload.sub) {
       return NextResponse.json(
         { error: "invalid_token" },

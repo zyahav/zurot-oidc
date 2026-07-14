@@ -26,10 +26,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate PKCE code_challenge_method if provided
-    if (code_challenge_method && code_challenge_method !== "S256" && code_challenge_method !== "plain") {
+    if (!code_challenge || code_challenge_method !== "S256") {
       return NextResponse.json(
-        { error: "invalid_request", error_description: "Unsupported code_challenge_method. Use S256 or plain." },
+        { error: "invalid_request", error_description: "S256 PKCE code_challenge required" },
         { status: 400 }
       );
     }
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-    } else if (!validRedirects.some((r) => redirectUri.startsWith(r))) {
+    } else if (!validRedirects.includes(redirectUri)) {
       return NextResponse.json(
         { error: "Invalid redirect URI" },
         { status: 400 }
@@ -64,15 +63,29 @@ export async function POST(request: NextRequest) {
     const code = crypto.randomBytes(32).toString("base64url");
 
     // Store authorization code with PKCE params
-    await convexServer.mutation(api.oauth.storeAuthorizationCode, {
-      code,
-      profileId: profileId as Id<"profiles">,
-      clientId,
-      redirectUri,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
-      codeChallenge: code_challenge,
-      codeChallengeMethod: code_challenge_method,
-    });
+    try {
+      await convexServer.mutation(api.oauth.storeAuthorizationCode, {
+        code,
+        profileId: profileId as Id<"profiles">,
+        userId,
+        clientId,
+        redirectUri,
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+        codeChallenge: code_challenge,
+        codeChallengeMethod: "S256",
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("not owned by current user")
+      ) {
+        return NextResponse.json(
+          { error: "Profile not found or not owned by current user" },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,

@@ -520,6 +520,11 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
   }
 
   expect(authCode, `Silent auth failed; error=${lastErrorCode ?? 'none'}; url=${lastAuthorizeUrl ?? 'n/a'}`).toBeTruthy();
+  const codeVerifier = await page.evaluate(
+    key => sessionStorage.getItem(key),
+    `zurot_pkce_${state}`
+  );
+  expect(codeVerifier, `Missing PKCE verifier for state ${state}`).toBeTruthy();
 
   const tokenRes = await fetch(`${BASE_URL}/api/oauth/token`, {
     method: 'POST',
@@ -529,6 +534,7 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
       code: authCode,
       client_id: OIDC_CLIENT_ID,
       redirect_uri: OIDC_REDIRECT_URI,
+      code_verifier: codeVerifier,
     }),
   });
   const tokenJson = await tokenRes.json();
@@ -620,18 +626,23 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   const deleteName = `Delete Me ${Date.now().toString().slice(-4)}`;
   await page.getByPlaceholder('e.g. Alex').fill(deleteName);
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click();
+  await ensureManageUnlocked(page);
   await expect(page.locator('aside a', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await expect
     .poll(async () => page.locator('aside a', { hasText: deleteName }).count(), { timeout: 15000 })
     .toBeGreaterThan(0);
 
   const sidebarLinks = page.locator("aside a[href^='/profiles/manage/']");
+  await ensureManageUnlocked(page);
+  await expect(page.getByRole('button', { name: '+ Add new profile', exact: true })).toBeVisible({ timeout: 10000 });
   let preDeleteCount = await sidebarLinks.count();
   if (preDeleteCount < 2) {
     const extraName = `Delete Extra ${Date.now().toString().slice(-4)}`;
+    await ensureManageUnlocked(page);
     await page.getByRole('button', { name: '+ Add new profile', exact: true }).click();
     await page.getByPlaceholder('e.g. Alex').fill(extraName);
     await page.getByRole('button', { name: 'Create Profile', exact: true }).click();
+    await ensureManageUnlocked(page);
     await expect(page.locator('aside a', { hasText: extraName }).first()).toBeVisible({ timeout: 10000 });
     preDeleteCount = await sidebarLinks.count();
   }
