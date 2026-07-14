@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     let clientId: string | null = null;
     let redirectUri: string | null = null;
     let codeVerifier: string | null = null;
+    let clientSecret: string | null = null;
 
     // Parse body based on content type
     if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
       clientId = params.get("client_id");
       redirectUri = params.get("redirect_uri");
       codeVerifier = params.get("code_verifier");
+      clientSecret = params.get("client_secret");
     } else {
       const body = await request.json();
       grantType = body.grant_type;
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
       clientId = body.client_id;
       redirectUri = body.redirect_uri;
       codeVerifier = body.code_verifier;
+      clientSecret = body.client_secret;
     }
 
     // Validate grant type
@@ -57,6 +60,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "invalid_request", error_description: "Missing parameters" },
         { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    const clientValidation = await convexServer.query(api.oauth.validateClientCredentials, {
+      clientId,
+      redirectUri,
+      clientSecret: clientSecret || undefined,
+    });
+
+    if (!clientValidation.valid) {
+      return NextResponse.json(
+        {
+          error: "invalid_client",
+          error_description: clientValidation.error || "Invalid client",
+        },
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 

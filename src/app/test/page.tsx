@@ -23,6 +23,8 @@ interface DecodedToken {
   };
 }
 
+const PKCE_STORAGE_PREFIX = "zurot_pkce_";
+
 function TestPageContent() {
   const searchParams = useSearchParams();
   const activeProfile = useQuery(api.profiles.getActiveProfile, {});
@@ -49,12 +51,17 @@ function TestPageContent() {
 
     if (code && state && !tokens && !isExchanging) {
       setIsExchanging(true);
-      exchangeCodeForTokens(code);
+      exchangeCodeForTokens(code, state);
     }
   }, [searchParams, tokens, isExchanging]);
 
-  const exchangeCodeForTokens = async (code: string) => {
+  const exchangeCodeForTokens = async (code: string, state: string) => {
     try {
+      const codeVerifier = sessionStorage.getItem(`${PKCE_STORAGE_PREFIX}${state}`);
+      if (!codeVerifier) {
+        throw new Error("Missing PKCE verifier for OAuth state");
+      }
+
       const response = await fetch("/api/oauth/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,6 +70,7 @@ function TestPageContent() {
           code,
           client_id: "test-client",
           redirect_uri: `${window.location.origin}/test`,
+          code_verifier: codeVerifier,
         }),
       });
 
@@ -83,6 +91,7 @@ function TestPageContent() {
       setError(null);
 
       // Clear URL params
+      sessionStorage.removeItem(`${PKCE_STORAGE_PREFIX}${state}`);
       window.history.replaceState({}, "", "/test");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Token exchange failed");

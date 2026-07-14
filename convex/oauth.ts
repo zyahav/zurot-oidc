@@ -9,11 +9,10 @@ import { Id } from "./_generated/dataModel";
 function verifyPkceChallenge(
   verifier: string,
   challenge: string,
-  method: string
+  method: "S256"
 ): boolean {
-  if (method === "plain") {
-    return verifier === challenge;
-  }
+  if (method !== "S256") return false;
+
   // S256: BASE64URL(SHA256(code_verifier))
   // Note: In Convex, we need to use a pure JS implementation
   // since crypto module isn't available
@@ -108,6 +107,25 @@ function rotr(x: number, n: number): number {
   return ((x >>> n) | (x << (32 - n))) >>> 0;
 }
 
+const bytesToHex = (bytes: Uint8Array): string => {
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const hashClientSecret = (secret: string, salt: string): string => {
+  return bytesToHex(sha256(`${salt}:${secret}`));
+};
+
+const constantTimeEqual = (a: string, b: string): boolean => {
+  const maxLength = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+
+  for (let i = 0; i < maxLength; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+
+  return diff === 0;
+};
+
 /**
  * Store authorization code in database
  */
@@ -115,14 +133,19 @@ export const storeAuthorizationCode = mutation({
   args: {
     code: v.string(),
     profileId: v.id("profiles"),
+    userId: v.string(),
     clientId: v.string(),
     redirectUri: v.string(),
     expiresAt: v.number(),
-    // PKCE support
-    codeChallenge: v.optional(v.string()),
-    codeChallengeMethod: v.optional(v.string()),
+    codeChallenge: v.string(),
+    codeChallengeMethod: v.literal("S256"),
   },
   handler: async (ctx, args) => {
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile || profile.userId !== args.userId) {
+      throw new Error("Profile not found or not owned by current user");
+    }
+
     // Cleanup expired codes first
     const expiredCodes = await ctx.db
       .query("authCodes")
@@ -186,20 +209,22 @@ export const consumeAuthorizationCode = mutation({
     }
 
     // PKCE verification
-    if (authCode.codeChallenge) {
-      if (!args.codeVerifier) {
-        throw new Error("code_verifier required");
-      }
-      
-      const isValid = verifyPkceChallenge(
-        args.codeVerifier,
-        authCode.codeChallenge,
-        authCode.codeChallengeMethod || "S256"
-      );
-      
-      if (!isValid) {
-        throw new Error("invalid code_verifier");
-      }
+    if (!authCode.codeChallenge || authCode.codeChallengeMethod !== "S256") {
+      throw new Error("S256 PKCE challenge required");
+    }
+
+    if (!args.codeVerifier) {
+      throw new Error("code_verifier required");
+    }
+
+    const isValid = verifyPkceChallenge(
+      args.codeVerifier,
+      authCode.codeChallenge,
+      authCode.codeChallengeMethod
+    );
+
+    if (!isValid) {
+      throw new Error("invalid code_verifier");
     }
 
     // Get profile details
@@ -257,10 +282,22 @@ export const registerClient = mutation({
   args: {
     clientId: v.string(),
     clientSecret: v.optional(v.string()),
+    tokenEndpointAuthMethod: v.optional(
+      v.union(v.literal("none"), v.literal("client_secret_post"))
+    ),
     redirectUris: v.array(v.string()),
     backchannelLogoutUri: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const tokenEndpointAuthMethod =
+      args.tokenEndpointAuthMethod ??
+      (args.clientSecret ? "client_secret_post" : "none");
+    const clientSecretSalt = args.clientSecret ? crypto.randomUUID() : undefined;
+    const clientSecretHash =
+      args.clientSecret && clientSecretSalt
+        ? hashClientSecret(args.clientSecret, clientSecretSalt)
+        : undefined;
+
     const existing = await ctx.db
       .query("oauthClients")
       .withIndex("by_client_id", (q) => q.eq("clientId", args.clientId))
@@ -270,11 +307,22 @@ export const registerClient = mutation({
       await ctx.db.patch(existing._id, {
         redirectUris: args.redirectUris,
         backchannelLogoutUri: args.backchannelLogoutUri,
+        tokenEndpointAuthMethod,
+        clientSecretHash,
+        clientSecretSalt,
+        clientSecret: undefined,
       });
       return existing._id;
     }
 
-    return await ctx.db.insert("oauthClients", args);
+    return await ctx.db.insert("oauthClients", {
+      clientId: args.clientId,
+      redirectUris: args.redirectUris,
+      backchannelLogoutUri: args.backchannelLogoutUri,
+      tokenEndpointAuthMethod,
+      clientSecretHash,
+      clientSecretSalt,
+    });
   },
 });
 
@@ -295,13 +343,112 @@ export const validateClient = query({
     if (!client) {
       // For development, allow test-client
       if (args.clientId === "test-client") {
-        return { valid: true, clientId: "test-client" };
+        if (
+          [
+            "http://localhost:3000/test",
+            "http://localhost:3000/auth/callback",
+          ].includes(args.redirectUri)
+        ) {
+          return {
+            valid: true,
+            clientId: "test-client",
+            tokenEndpointAuthMethod: "none" as const,
+          };
+        }
+        return { valid: false, error: "Invalid redirect URI" };
       }
       return { valid: false, error: "Unknown client" };
     }
 
     if (!client.redirectUris.includes(args.redirectUri)) {
       return { valid: false, error: "Invalid redirect URI" };
+    }
+
+    return {
+      valid: true,
+      clientId: client.clientId,
+      tokenEndpointAuthMethod: client.tokenEndpointAuthMethod ?? "none",
+    };
+  },
+});
+
+/**
+ * Validate OAuth client credentials at token endpoint
+ */
+export const validateClientCredentials = query({
+  args: {
+    clientId: v.string(),
+    redirectUri: v.string(),
+    clientSecret: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const client = await ctx.db
+      .query("oauthClients")
+      .withIndex("by_client_id", (q) => q.eq("clientId", args.clientId))
+      .first();
+
+    if (!client) {
+      if (
+        args.clientId === "test-client" &&
+        [
+          "http://localhost:3000/test",
+          "http://localhost:3000/auth/callback",
+        ].includes(args.redirectUri)
+      ) {
+        return { valid: true, clientId: "test-client", tokenEndpointAuthMethod: "none" as const };
+      }
+      return { valid: false, error: "Unknown client" };
+    }
+
+    if (!client.redirectUris.includes(args.redirectUri)) {
+      return { valid: false, error: "Invalid redirect URI" };
+    }
+
+    const tokenEndpointAuthMethod =
+      client.tokenEndpointAuthMethod ??
+      (client.clientSecretHash || client.clientSecret ? "client_secret_post" : "none");
+
+    if (tokenEndpointAuthMethod === "client_secret_post") {
+      if (!client.clientSecretHash || !client.clientSecretSalt) {
+        return { valid: false, error: "Client secret not configured" };
+      }
+      if (!args.clientSecret) {
+        return { valid: false, error: "client_secret required" };
+      }
+
+      const candidateHash = hashClientSecret(args.clientSecret, client.clientSecretSalt);
+      if (!constantTimeEqual(candidateHash, client.clientSecretHash)) {
+        return { valid: false, error: "Invalid client secret" };
+      }
+    }
+
+    return {
+      valid: true,
+      clientId: client.clientId,
+      tokenEndpointAuthMethod,
+    };
+  },
+});
+
+/**
+ * Validate token audience maps to a registered OAuth client
+ */
+export const validateAudience = query({
+  args: {
+    clientId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.clientId === "test-client") {
+      return { valid: true, clientId: "test-client" };
+    }
+
+    const client = await ctx.db
+      .query("oauthClients")
+      .withIndex("by_client_id", (q) => q.eq("clientId", args.clientId))
+      .first();
+
+    if (!client) {
+      return { valid: false, error: "Unknown client" };
     }
 
     return { valid: true, clientId: client.clientId };

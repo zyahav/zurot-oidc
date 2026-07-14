@@ -8,7 +8,7 @@ Read this before implementing auth in any consumer app.
 | Claim | Type | Example |
 |---|---|---|
 | `sub` | string | `profile_js71q9tyv7a18efcz8amqnf18n83kj18` |
-| `iss` | string | `http://localhost:3000` |
+| `iss` | string | `https://auth.zurot.org` in production, `http://localhost:3000` in local dev |
 | `aud` | string | `mall-hebrew-adventures` |
 | `iat` | number | `1774401214` |
 | `exp` | number | `1774402114` |

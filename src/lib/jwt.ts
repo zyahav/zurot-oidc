@@ -14,6 +14,10 @@ let publicKeyJWK: jose.JWK | null = null;
 // Key ID for JWKS - should be rotated when keys change
 const KEY_ID = "zurot-rs256-key-1";
 
+if (process.env.NODE_ENV === "production" && !process.env.ISSUER) {
+  throw new Error("ISSUER must be set in production");
+}
+
 export const ISSUER =
   process.env.ISSUER ||
   (process.env.NODE_ENV === "development"
@@ -132,13 +136,17 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
   return token;
 }
 
-export async function verifyToken(token: string): Promise<jose.JWTPayload | null> {
+export async function verifyToken(
+  token: string,
+  audience?: string
+): Promise<jose.JWTPayload | null> {
   await keysReady;
   if (!publicKey) throw new Error("RSA public key not initialized");
 
   try {
     const { payload } = await jose.jwtVerify(token, publicKey, {
       issuer: ISSUER,
+      audience,
     });
     return payload;
   } catch {
