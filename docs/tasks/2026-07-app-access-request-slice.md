@@ -130,3 +130,14 @@ add_device request UI, Coach product, role changes in PERSONA_SCOPE_DEFAULTS.
 
 Note: docs/decisions.md already exists and is written by the architect.
 Do NOT rewrite or expand it — item 10 is satisfied; leave the file as-is.
+
+## DONE notes
+
+- Scope overrides are derived from approved `accessRequests` at token time instead
+  of storing a separate table, so portal state and token scopes read the same
+  stored state.
+- Approval takes effect on the next token issuance. Portal launch still creates a
+  fresh authorization request with a new state value rather than caching tokens.
+- Duplicate product access requests are rejected server-side in `requestAccess`;
+  this repo does not currently have a Convex mutation test pattern, so the
+  assertion is enforced in code.

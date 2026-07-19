@@ -76,3 +76,27 @@ test("parent token scopes for devices are exactly isolated devices scopes", asyn
   assert.equal(scopes.some((s: string) => s.startsWith("hub:")), false);
   assert.equal(scopes.some((s: string) => s.startsWith("game:")), false);
 });
+
+test("override grants student devices scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(
+    engine.translatePersonaToScopes("student", "devices", [
+      {
+        profileId: "profile_1",
+        product: "devices",
+        scopes: ["devices:view", "devices:manage", "devices:command"],
+      },
+    ]),
+    ["devices:view", "devices:manage", "devices:command"]
+  );
+});
+
+test("student devices without override returns empty scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(engine.translatePersonaToScopes("student", "devices"), []);
+});
+
+test("revoked student devices access has no override and returns empty scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(engine.translatePersonaToScopes("student", "devices", []), []);
+});
