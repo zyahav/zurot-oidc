@@ -6,6 +6,7 @@ import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
+import { Id } from "../../../../convex/_generated/dataModel";
 import { AddProfileModal } from "@/components/zurot/add-profile-modal";
 import { ProfileAvatar } from "@/components/zurot/profile-avatar";
 import { SignOutConfirmModal } from "@/components/zurot/signout-confirm-modal";
@@ -22,6 +23,16 @@ type ActivityRecord = {
   title: string;
   createdAt: number;
   type: string;
+};
+
+type ManagedAccessRequest = {
+  _id: string;
+  profileName: string;
+  productName: string;
+  productKey: string;
+  status: "pending" | "approved" | "declined";
+  requestedAt: number;
+  reviewNote?: string;
 };
 
 const formatDateTime = (timestamp: number) =>
@@ -47,6 +58,9 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
   const ownerPin = useQuery(api.profiles.getOwnerPin, {});
+  const accessRequests = useQuery(api.profiles.listPendingRequests, {}) as
+    | ManagedAccessRequest[]
+    | undefined;
 
   const [unlockedUntil, setUnlockedUntil] = useState<number | null>(null);
   const [gatePinInput, setGatePinInput] = useState("");
@@ -74,6 +88,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
 
   const [editableName, setEditableName] = useState("");
   const [editableRole, setEditableRole] = useState<ProfileRole>("student");
+  const [identityOwnerPin, setIdentityOwnerPin] = useState("");
   const [editableAvatar, setEditableAvatar] = useState(AVATAR_PRESETS[0]);
   const [identityBusy, setIdentityBusy] = useState(false);
 
@@ -84,6 +99,8 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [requestNotes, setRequestNotes] = useState<Record<string, string>>({});
+  const [requestBusyId, setRequestBusyId] = useState<string | null>(null);
 
   const profiles = useMemo(() => (profilesRaw ?? []) as HubProfile[], [profilesRaw]);
   const canAddProfile = profiles.length < 10;
@@ -162,6 +179,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
 
     setEditableName(selectedProfile.name);
     setEditableRole(selectedProfile.role);
+    setIdentityOwnerPin("");
     setEditableAvatar({ emoji: selectedProfile.emoji, color: selectedProfile.color });
     setPinMode("idle");
     setPinInput("");
@@ -175,6 +193,8 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   const deleteProfile = useMutation(api.profiles.deleteProfile);
   const disableApp = useMutation(api.profiles.disableApp);
   const enableApp = useMutation(api.profiles.enableApp);
+  const reviewRequest = useMutation(api.profiles.reviewRequest);
+  const revokeAccess = useMutation(api.profiles.revokeAccess);
 
   const onCreateProfile: Parameters<typeof AddProfileModal>[0]["onSubmit"] = async values => {
     if (!canAddProfile) {
@@ -350,8 +370,14 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
         role: editableRole,
         emoji: editableAvatar.emoji,
         color: editableAvatar.color,
+        ownerPin:
+          (editableRole === "parent" || editableRole === "teacher") &&
+          editableRole !== selectedProfile.role
+            ? identityOwnerPin
+            : undefined,
       });
       pushToast("Profile updated.");
+      setIdentityOwnerPin("");
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Failed to update profile.");
     } finally {
@@ -442,6 +468,40 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
       pushToast(error instanceof Error ? error.message : "Failed to delete profile.");
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  const handleReviewRequest = async (
+    requestId: string,
+    status: "approved" | "declined"
+  ) => {
+    setRequestBusyId(requestId);
+    try {
+      await reviewRequest({
+        requestId: requestId as Id<"accessRequests">,
+        status,
+        reviewNote: requestNotes[requestId],
+      });
+      pushToast(status === "approved" ? "Request approved." : "Request declined.");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Failed to review request.");
+    } finally {
+      setRequestBusyId(null);
+    }
+  };
+
+  const handleRevokeAccess = async (requestId: string) => {
+    setRequestBusyId(requestId);
+    try {
+      await revokeAccess({
+        requestId: requestId as Id<"accessRequests">,
+        reviewNote: requestNotes[requestId],
+      });
+      pushToast("Access revoked.");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Failed to revoke access.");
+    } finally {
+      setRequestBusyId(null);
     }
   };
 
@@ -778,6 +838,77 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                 </section>
 
                 <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
+                  <h2 className="text-lg font-semibold">Requests</h2>
+                  {accessRequests === undefined ? (
+                    <p className="mt-3 text-sm text-zinc-400">Loading requests...</p>
+                  ) : accessRequests.length === 0 ? (
+                    <p className="mt-3 text-sm text-zinc-400">No pending or approved access requests.</p>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {accessRequests.map(request => (
+                        <div key={request._id} className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-100">
+                                {request.profileName} · {request.productName}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-400">
+                                {request.status === "pending" ? "Pending approval" : "Approved"} · {formatDateTime(request.requestedAt)}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300">
+                              {request.productKey}
+                            </span>
+                          </div>
+                          <input
+                            value={requestNotes[request._id] ?? ""}
+                            onChange={event =>
+                              setRequestNotes(current => ({
+                                ...current,
+                                [request._id]: event.target.value,
+                              }))
+                            }
+                            className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                            placeholder="Optional note"
+                          />
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {request.status === "pending" ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleReviewRequest(request._id, "approved")}
+                                  disabled={requestBusyId === request._id}
+                                  className="rounded-lg bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-900 disabled:opacity-60"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleReviewRequest(request._id, "declined")}
+                                  disabled={requestBusyId === request._id}
+                                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-100 disabled:opacity-60"
+                                >
+                                  Decline
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void handleRevokeAccess(request._id)}
+                                disabled={requestBusyId === request._id}
+                                className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm text-red-300 disabled:opacity-60"
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
                   <h2 className="text-lg font-semibold">Recent Activity</h2>
                   {activity.length === 0 ? (
                     <p className="mt-3 text-sm text-zinc-400">No activity yet for this profile.</p>
@@ -850,6 +981,21 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                           className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
                         />
                       </div>
+
+                      {(editableRole === "parent" || editableRole === "teacher") &&
+                      editableRole !== selectedProfile.role ? (
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-zinc-200">Owner PIN</label>
+                          <input
+                            type="password"
+                            inputMode="numeric"
+                            value={identityOwnerPin}
+                            onChange={event => setIdentityOwnerPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                            placeholder="Set one first if needed"
+                          />
+                        </div>
+                      ) : null}
 
                       <div>
                         <p className="mb-2 text-sm font-medium text-zinc-200">Role</p>

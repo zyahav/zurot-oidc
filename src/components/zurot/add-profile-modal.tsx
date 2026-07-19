@@ -9,6 +9,7 @@ export type AddProfileFormValues = {
   emoji: string;
   color: string;
   role: ProfileRole;
+  ownerPin?: string;
 };
 
 export function AddProfileModal({
@@ -22,6 +23,7 @@ export function AddProfileModal({
 }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<ProfileRole>("student");
+  const [ownerPin, setOwnerPin] = useState("");
   const [selectedPreset, setSelectedPreset] = useState(AVATAR_PRESETS[0]);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,7 @@ export function AddProfileModal({
       emoji: selectedPreset.emoji,
       color: selectedPreset.color,
       role,
+      ownerPin: role === "parent" || role === "teacher" ? ownerPin : undefined,
     });
   };
 
@@ -80,6 +83,20 @@ export function AddProfileModal({
               ))}
             </div>
           </div>
+
+          {role === "parent" || role === "teacher" ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-200">Owner PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={ownerPin}
+                onChange={event => setOwnerPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                placeholder="Set one first in Manage Profiles if needed"
+              />
+            </div>
+          ) : null}
 
           <div>
             <p className="mb-2 text-sm font-medium text-zinc-200">Avatar</p>
