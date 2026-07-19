@@ -1,9 +1,17 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useClerk } from "@clerk/nextjs";
+import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim();
+const PROFILE_REDIRECTS = {
+  fallbackRedirectUrl: "/profiles",
+  forceRedirectUrl: "/profiles",
+  signInFallbackRedirectUrl: "/profiles",
+  signInForceRedirectUrl: "/profiles",
+  signUpFallbackRedirectUrl: "/profiles",
+  signUpForceRedirectUrl: "/profiles",
+} as const;
 
 function buildProfilesUrl(email: string): string {
   const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
@@ -16,23 +24,26 @@ function buildProfilesUrl(email: string): string {
 }
 
 export default function RootPage() {
-  const { openSignIn, openSignUp } = useClerk();
+  const { isLoaded } = useAuth();
+  const { openSignUp } = useClerk();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isLoaded) {
+      setError("Sign in is still loading. Try again in a moment.");
+      return;
+    }
+
     const nextEmail = email.trim().toLowerCase();
     if (!nextEmail || !nextEmail.includes("@")) {
       setError("Enter a valid email address.");
       return;
     }
     setError(null);
-    openSignUp({
-      fallbackRedirectUrl: "/profiles",
-      forceRedirectUrl: "/profiles",
-      signInFallbackRedirectUrl: "/profiles",
-      signInForceRedirectUrl: "/profiles",
+    void openSignUp({
+      ...PROFILE_REDIRECTS,
       initialValues: { emailAddress: nextEmail },
     });
   };
@@ -45,22 +56,22 @@ export default function RootPage() {
       <section className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 py-16 sm:px-10">
         <div className="mb-10 flex items-center justify-between">
           <p className="text-xl font-bold tracking-[0.26em] text-zinc-50">ZUROT</p>
-          <a
-            href="/profiles"
-            onClick={event => {
-              event.preventDefault();
-              openSignIn({
-                fallbackRedirectUrl: "/profiles",
-                forceRedirectUrl: "/profiles",
-                signUpFallbackRedirectUrl: "/profiles",
-                signUpForceRedirectUrl: "/profiles",
-                initialValues: email.trim() ? { emailAddress: email.trim().toLowerCase() } : undefined,
-              });
-            }}
-            className="rounded-md border border-zinc-400/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-100 hover:bg-zinc-100 hover:text-zinc-900"
+          <SignInButton
+            mode="modal"
+            fallbackRedirectUrl={PROFILE_REDIRECTS.fallbackRedirectUrl}
+            forceRedirectUrl={PROFILE_REDIRECTS.forceRedirectUrl}
+            signUpFallbackRedirectUrl={PROFILE_REDIRECTS.signUpFallbackRedirectUrl}
+            signUpForceRedirectUrl={PROFILE_REDIRECTS.signUpForceRedirectUrl}
+            initialValues={email.trim() ? { emailAddress: email.trim().toLowerCase() } : undefined}
           >
-            Sign in
-          </a>
+            <button
+              type="button"
+              disabled={!isLoaded}
+              className="rounded-md border border-zinc-400/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-100 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Sign in
+            </button>
+          </SignInButton>
         </div>
 
         <div className="max-w-3xl">
@@ -85,6 +96,7 @@ export default function RootPage() {
               />
               <button
                 type="submit"
+                disabled={!isLoaded}
                 className="h-14 rounded-md bg-[#e50914] px-8 text-base font-bold text-white transition hover:bg-[#f6121d]"
               >
                 Get Started

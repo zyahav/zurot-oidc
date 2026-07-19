@@ -37,7 +37,8 @@ export type Product =
   | "lms"      // Learning Management System
   | "portal"   // Parent/Admin Portal
   | "hub"      // ZurOt Hub itself
-  | "game";    // Mall Hebrew Adventures
+  | "game"     // Mall Hebrew Adventures
+  | "devices"; // Android device management
 
 /**
  * Scope format: "product:permission"
@@ -76,6 +77,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     portal: ["portal:viewer"],
     hub: ["hub:profile", "hub:settings"],
     game: ["game:instructor", "game:viewer"],
+    devices: ["devices:manage", "devices:view", "devices:command"],
   },
   
   student: {
@@ -84,6 +86,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     portal: [], // Students don't access portal
     hub: ["hub:profile"],
     game: ["game:player"],
+    devices: [],
   },
   
   admin: {
@@ -92,6 +95,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     portal: ["portal:admin", "portal:viewer", "portal:reports"],
     hub: ["hub:admin", "hub:profile", "hub:settings", "hub:users"],
     game: ["game:instructor", "game:viewer", "game:player", "game:observer", "game:admin"],
+    devices: ["devices:admin", "devices:manage", "devices:view", "devices:command"],
   },
   
   parent: {
@@ -100,6 +104,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     portal: ["portal:parent", "portal:viewer"],
     hub: ["hub:profile"],
     game: ["game:observer"],
+    devices: ["devices:manage", "devices:view", "devices:command"],
   },
   
   guest: {
@@ -108,6 +113,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     portal: [],
     hub: ["hub:profile"],
     game: [],
+    devices: [],
   },
 };
 
@@ -236,6 +242,7 @@ export function resolveClientToProduct(clientId: string): Product {
     "lms-client": "lms",
     "portal-client": "portal",
     "mall-hebrew-adventures": "game",
+    "devices": "devices",
   };
   
   // Check exact match first
@@ -247,6 +254,7 @@ export function resolveClientToProduct(clientId: string): Product {
   if (clientId.startsWith("cms-")) return "cms";
   if (clientId.startsWith("lms-")) return "lms";
   if (clientId.startsWith("portal-")) return "portal";
+  if (clientId.startsWith("devices-")) return "devices";
   
   // Default to hub
   return "hub";

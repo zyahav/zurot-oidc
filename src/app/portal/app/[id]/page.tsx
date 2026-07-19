@@ -9,6 +9,7 @@ export default function PortalAppDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isLoaded, isSignedIn, activeProfile, shouldRedirectToProfiles } = useActiveProfileGuard();
   const app = APP_BY_ID.get(id);
+  const launchHref = app?.launchPath ?? `/launch/${id}`;
 
   if (!isLoaded) {
     return <main className="flex min-h-screen items-center justify-center">Loading...</main>;
@@ -75,7 +76,7 @@ export default function PortalAppDetailPage() {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href={`/launch/${app.id}`}
+            href={launchHref}
             className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900"
           >
             Launch App

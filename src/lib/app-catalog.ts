@@ -9,9 +9,24 @@ export type ZurotApp = {
   lessonCount: number;
   tags: string[];
   isNew?: boolean;
+  launchPath?: string;
 };
 
 export const APP_CATALOG: ZurotApp[] = [
+  {
+    id: "tzura-creator",
+    name: "Tzura Creator",
+    emoji: "🎮",
+    shortDescription: "Create a playable Tzura from spoken ideas.",
+    description:
+      "A child-facing creator where voice-style instructions update a live game draft, then publish a frozen Tzura post.",
+    subject: "Creative Coding",
+    ageRange: "6-12",
+    lessonCount: 1,
+    tags: ["Creation", "Games", "Voice"],
+    isNew: true,
+    launchPath: "/tzura/create",
+  },
   {
     id: "mall-hebrew-adventures",
     name: "Mall Hebrew Adventures",
@@ -23,7 +38,6 @@ export const APP_CATALOG: ZurotApp[] = [
     ageRange: "6-11",
     lessonCount: 42,
     tags: ["Reading", "Vocabulary", "Speaking"],
-    isNew: true,
   },
   {
     id: "letters-lab",

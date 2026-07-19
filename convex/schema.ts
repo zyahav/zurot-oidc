@@ -51,6 +51,44 @@ export default defineSchema({
     .index("by_owner", ["ownerProfileId"])
     .index("by_recency", ["createdAt"]),
 
+  tzuraDrafts: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    title: v.string(),
+    gameSpec: v.any(),
+    status: v.literal("draft"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    remixOfArtifactId: v.optional(v.id("tzuraArtifacts")),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_owner_updated", ["ownerProfileId", "updatedAt"]),
+
+  tzuraArtifacts: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    title: v.string(),
+    gameSpecSnapshot: v.any(),
+    version: v.number(),
+    status: v.literal("published"),
+    createdAt: v.number(),
+    immutable: v.literal(true),
+    sourceDraftId: v.id("tzuraDrafts"),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_source_draft", ["sourceDraftId"]),
+
+  tzuraFeedItems: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    artifactId: v.id("tzuraArtifacts"),
+    type: v.literal("game"),
+    visibility: v.union(v.literal("public"), v.literal("private")),
+    createdAt: v.number(),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_artifact", ["artifactId"]),
+
   activeProfiles: defineTable({
     userId: v.string(),
     sessionId: v.string(),
