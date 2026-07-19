@@ -37,6 +37,19 @@ export default defineSchema({
     appId: v.string(),
   }).index("by_profile", ["profileId"]),
 
+  accessRequests: defineTable({
+    profileId: v.id("profiles"),
+    productKey: v.string(),
+    requestType: v.union(v.literal("product_access"), v.literal("add_device")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+    requestedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("profiles")),
+    reviewNote: v.optional(v.string()),
+  })
+    .index("by_profile", ["profileId"])
+    .index("by_status", ["status"]),
+
   activities: defineTable({
     activityId: v.string(),
     ownerProfileId: v.id("profiles"),
