@@ -2,6 +2,7 @@ import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { sha256 } from "./oauth";
+import { APP_CATALOG } from "../src/lib/app-catalog";
 
 const PROFILE_ROLE = v.union(
   v.literal("student"),
@@ -17,15 +18,6 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
-
-const AVAILABLE_APPS = [
-  {
-    id: "mall-hebrew-adventures",
-    name: "Mall Hebrew Adventures",
-    url: "https://preview-zurot-auth.mall-hebrew-adventures.pages.dev",
-    description: "Play",
-  },
-];
 
 const getSessionId = (identity: { [key: string]: unknown }): string => {
   // sessionId is added via the Convex JWT template in Clerk dashboard ({{session.id}}).
@@ -156,6 +148,87 @@ const assertOwnedProfile = async (
   return profile;
 };
 
+const assertOwnerProfileForUser = async (
+  ctx: MutationCtx | QueryCtx,
+  userId: string
+) => {
+  const ownerProfile = await ctx.db
+    .query("profiles")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .filter(q =>
+      q.or(q.eq(q.field("role"), "parent"), q.eq(q.field("role"), "teacher"))
+    )
+    .first();
+
+  if (!ownerProfile) {
+    throw new Error("Owner profile required");
+  }
+
+  return ownerProfile;
+};
+
+const assertOwnerPinVerified = async (
+  ctx: MutationCtx | QueryCtx,
+  clerkUserId: string,
+  pin: string | undefined
+) => {
+  const user = await getUserDocByClerkId(ctx, clerkUserId);
+  if (!user) {
+    throw new Error("Set an owner PIN before creating or changing adult profiles.");
+  }
+
+  const settings = await getAccountSettingsByUserId(ctx, user._id);
+  if (!settings?.ownerPinHash) {
+    throw new Error("Set an owner PIN before creating or changing adult profiles.");
+  }
+
+  if (!pin || !/^\d{4}$/.test(pin) || hashPin(pin) !== settings.ownerPinHash) {
+    throw new Error("Owner PIN verification required");
+  }
+};
+
+const getLatestProductAccessRequest = async (
+  ctx: MutationCtx | QueryCtx,
+  profileId: Id<"profiles">,
+  productKey: string
+) => {
+  const rows = await ctx.db
+    .query("accessRequests")
+    .withIndex("by_profile", q => q.eq("profileId", profileId))
+    .filter(q =>
+      q.and(
+        q.eq(q.field("productKey"), productKey),
+        q.eq(q.field("requestType"), "product_access")
+      )
+    )
+    .collect();
+
+  return rows.sort((a, b) => b.requestedAt - a.requestedAt)[0] ?? null;
+};
+
+const toAccessRequestClient = (request: {
+  _id: Id<"accessRequests">;
+  profileId: Id<"profiles">;
+  productKey: string;
+  requestType: "product_access" | "add_device";
+  status: "pending" | "approved" | "declined";
+  requestedAt: number;
+  reviewedAt?: number;
+  reviewedBy?: Id<"profiles">;
+  reviewNote?: string;
+}) => ({
+  id: request._id,
+  _id: request._id,
+  profileId: request.profileId,
+  productKey: request.productKey,
+  requestType: request.requestType,
+  status: request.status,
+  requestedAt: request.requestedAt,
+  reviewedAt: request.reviewedAt,
+  reviewedBy: request.reviewedBy,
+  reviewNote: request.reviewNote,
+});
+
 const toClientProfile = (profile: {
   _id: Id<"profiles">;
   name: string;
@@ -202,9 +275,14 @@ export const createProfile = mutation({
     emoji: v.string(),
     color: v.string(),
     role: PROFILE_ROLE,
+    ownerPin: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
+
+    if (args.role === "parent" || args.role === "teacher") {
+      await assertOwnerPinVerified(ctx, userId, args.ownerPin);
+    }
 
     const existingProfiles = await ctx.db
       .query("profiles")
@@ -305,10 +383,11 @@ export const updateProfile = mutation({
     color: v.optional(v.string()),
     role: v.optional(PROFILE_ROLE),
     pinHash: v.optional(v.union(v.string(), v.null())),
+    ownerPin: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
-    await assertOwnedProfile(ctx, args.id, userId);
+    const profile = await assertOwnedProfile(ctx, args.id, userId);
 
     const updates: {
       name?: string;
@@ -331,6 +410,12 @@ export const updateProfile = mutation({
     }
 
     if (args.role !== undefined) {
+      const changesToAdultRole =
+        (args.role === "parent" || args.role === "teacher") &&
+        profile.role !== args.role;
+      if (changesToAdultRole) {
+        await assertOwnerPinVerified(ctx, userId, args.ownerPin);
+      }
       updates.role = args.role;
     }
 
@@ -669,7 +754,184 @@ export const getAppsForActiveProfile = query({
       .collect();
     const disabledAppIds = new Set(disabledRows.map(row => row.appId));
 
-    return AVAILABLE_APPS.filter(app => !disabledAppIds.has(app.id));
+    return APP_CATALOG.filter(app => {
+      if (disabledAppIds.has(app.id)) {
+        return false;
+      }
+      return app.access[profile.role] !== "hidden";
+    });
+  },
+});
+
+export const requestAccess = mutation({
+  args: {
+    profileId: v.id("profiles"),
+    productKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    await assertOwnedProfile(ctx, args.profileId, userId);
+
+    const app = APP_CATALOG.find(candidate => candidate.id === args.productKey);
+    if (!app) {
+      throw new Error("Unknown product");
+    }
+
+    const latest = await getLatestProductAccessRequest(ctx, args.profileId, args.productKey);
+    if (latest?.status === "pending" || latest?.status === "approved") {
+      throw new Error("An active request already exists for this profile and product");
+    }
+
+    const requestId = await ctx.db.insert("accessRequests", {
+      profileId: args.profileId,
+      productKey: args.productKey,
+      requestType: "product_access",
+      status: "pending",
+      requestedAt: Date.now(),
+    });
+
+    const created = await ctx.db.get(requestId);
+    if (!created) {
+      throw new Error("Failed to create access request");
+    }
+
+    return toAccessRequestClient(created);
+  },
+});
+
+export const listAccessRequestsForProfile = query({
+  args: { profileId: v.id("profiles") },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    await assertOwnedProfile(ctx, args.profileId, userId);
+
+    const rows = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_profile", q => q.eq("profileId", args.profileId))
+      .filter(q => q.eq(q.field("requestType"), "product_access"))
+      .collect();
+
+    return rows.map(toAccessRequestClient);
+  },
+});
+
+export const listPendingRequests = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getUserId(ctx);
+    await assertOwnerProfileForUser(ctx, userId);
+
+    const profiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+    const profileIds = new Set(profiles.map(profile => profile._id));
+    const profileNames = new Map(profiles.map(profile => [profile._id, profile.name]));
+
+    const pending = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_status", q => q.eq("status", "pending"))
+      .collect();
+    const approved = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_status", q => q.eq("status", "approved"))
+      .collect();
+
+    return [...pending, ...approved]
+      .filter(request => profileIds.has(request.profileId))
+      .filter(request => request.requestType === "product_access")
+      .sort((a, b) => b.requestedAt - a.requestedAt)
+      .map(request => ({
+        ...toAccessRequestClient(request),
+        profileName: profileNames.get(request.profileId) ?? "Profile",
+        productName:
+          APP_CATALOG.find(app => app.id === request.productKey)?.name ??
+          request.productKey,
+      }));
+  },
+});
+
+export const reviewRequest = mutation({
+  args: {
+    requestId: v.id("accessRequests"),
+    status: v.union(v.literal("approved"), v.literal("declined")),
+    reviewNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    const reviewer = await assertOwnerProfileForUser(ctx, userId);
+    const request = await ctx.db.get(args.requestId);
+    if (!request) {
+      throw new Error("Request not found");
+    }
+
+    await assertOwnedProfile(ctx, request.profileId, userId);
+    if (request.status !== "pending") {
+      throw new Error("Only pending requests can be reviewed");
+    }
+
+    await ctx.db.patch(args.requestId, {
+      status: args.status,
+      reviewedAt: Date.now(),
+      reviewedBy: reviewer._id,
+      reviewNote: args.reviewNote?.trim() || undefined,
+    });
+  },
+});
+
+export const revokeAccess = mutation({
+  args: {
+    requestId: v.id("accessRequests"),
+    reviewNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    const reviewer = await assertOwnerProfileForUser(ctx, userId);
+    const request = await ctx.db.get(args.requestId);
+    if (!request) {
+      throw new Error("Request not found");
+    }
+
+    await assertOwnedProfile(ctx, request.profileId, userId);
+    if (request.status !== "approved") {
+      throw new Error("Only approved requests can be revoked");
+    }
+
+    await ctx.db.patch(args.requestId, {
+      status: "declined",
+      reviewedAt: Date.now(),
+      reviewedBy: reviewer._id,
+      reviewNote: args.reviewNote?.trim() || "Revoked",
+    });
+  },
+});
+
+export const getScopeOverridesForProfile = query({
+  args: { profileId: v.id("profiles") },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_profile", q => q.eq("profileId", args.profileId))
+      .filter(q =>
+        q.and(
+          q.eq(q.field("requestType"), "product_access"),
+          q.eq(q.field("status"), "approved")
+        )
+      )
+      .collect();
+
+    return rows.flatMap(row => {
+      if (row.productKey === "devices") {
+        return [
+          {
+            profileId: String(row.profileId),
+            product: "devices",
+            scopes: ["devices:view", "devices:manage", "devices:command"],
+          },
+        ];
+      }
+      return [];
+    });
   },
 });
 
