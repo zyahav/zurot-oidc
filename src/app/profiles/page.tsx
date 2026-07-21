@@ -229,7 +229,10 @@ export default function ProfilesPage() {
           <h1 className="mt-2 text-center text-4xl font-semibold text-zinc-50">Who&apos;s Watching?</h1>
           <p className="mt-2 text-center text-sm uppercase tracking-[0.2em] text-zinc-500">Select a profile to enter</p>
 
-          <div className="mt-8 flex items-center justify-end">
+          <div className="mt-8 flex items-center justify-end gap-5">
+            <Link href="/devices" className="text-sm font-medium text-zinc-300 underline">
+              Manage Devices
+            </Link>
             {profileList.length > 0 ? (
               <Link href="/profiles/manage" className="text-sm font-medium text-zinc-300 underline">
                 Manage Profiles

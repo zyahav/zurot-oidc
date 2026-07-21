@@ -14,6 +14,7 @@ export type ZurotApp = {
   ageRange?: string;
   lessonCount?: number;
   tags: string[];
+  tvCompatible?: boolean;
   isNew?: boolean;
   launchPath?: string;
 };
@@ -34,6 +35,7 @@ export const APP_CATALOG: ZurotApp[] = [
     tags: ["Creation", "Games", "Voice"],
     isNew: true,
     launchPath: "/tzura/create",
+    tvCompatible: true,
   },
   {
     id: "mall-hebrew-adventures",
@@ -48,6 +50,7 @@ export const APP_CATALOG: ZurotApp[] = [
     ageRange: "6-11",
     lessonCount: 42,
     tags: ["Reading", "Vocabulary", "Speaking"],
+    tvCompatible: true,
   },
   {
     id: "letters-lab",
@@ -62,6 +65,7 @@ export const APP_CATALOG: ZurotApp[] = [
     ageRange: "5-8",
     lessonCount: 36,
     tags: ["Phonics", "Pronunciation"],
+    tvCompatible: true,
   },
   {
     id: "story-castle",
@@ -76,6 +80,7 @@ export const APP_CATALOG: ZurotApp[] = [
     ageRange: "7-12",
     lessonCount: 28,
     tags: ["Stories", "Comprehension"],
+    tvCompatible: true,
   },
   {
     id: "math-market",
@@ -90,6 +95,7 @@ export const APP_CATALOG: ZurotApp[] = [
     ageRange: "7-12",
     lessonCount: 31,
     tags: ["Arithmetic", "Problem Solving"],
+    tvCompatible: true,
   },
   {
     id: "devices",
@@ -112,15 +118,21 @@ export const APP_CATALOG: ZurotApp[] = [
     launchUrl: "https://meta.zurot.org/auth/login",
     access: { parent: "included", teacher: "included", student: "hidden" },
     tags: ["Business", "Meta", "Operations"],
+    tvCompatible: true,
   },
 ];
 
 export const APP_BY_ID = new Map(APP_CATALOG.map(app => [app.id, app]));
 
-export function appLaunchHref(app: ZurotApp, activeProfileId?: string): string {
+export function appLaunchHref(
+  app: ZurotApp,
+  activeProfileId?: string,
+  options?: { tv?: boolean }
+): string {
   const base = app.launchPath ?? app.launchUrl;
   if (app.id !== "meta-control-room" || !activeProfileId) return base;
   const url = new URL(app.launchUrl);
   url.searchParams.set("profile_hint", activeProfileId);
+  if (options?.tv) url.searchParams.set("tv", "1");
   return url.toString();
 }

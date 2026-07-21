@@ -132,4 +132,36 @@ export default defineSchema({
     redirectUris: v.array(v.string()),
     backchannelLogoutUri: v.optional(v.string()),
   }).index("by_client_id", ["clientId"]),
+
+  tvPairings: defineTable({
+    deviceTokenHash: v.string(),
+    userCode: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("claimed"),
+      v.literal("expired")
+    ),
+    expiresAt: v.number(),
+    deviceId: v.optional(v.id("tvDevices")),
+    approvedByUserId: v.optional(v.id("users")),
+    failedPinAttempts: v.optional(v.number()),
+    pinLockedUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status_expiry", ["status", "expiresAt"]),
+
+  tvDevices: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    tokenHash: v.string(),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    activeProfileId: v.optional(v.id("profiles")),
+    failedProfilePinAttempts: v.optional(v.number()),
+    profilePinLockedUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastSeenAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
 });
