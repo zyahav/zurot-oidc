@@ -6,7 +6,7 @@ import { SignInButton } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useActiveProfileGuard } from "../_guards/use-active-profile-guard";
-import { APP_CATALOG } from "@/lib/app-catalog";
+import { APP_CATALOG, appLaunchHref } from "@/lib/app-catalog";
 import { api } from "../../../convex/_generated/api";
 
 type AccessRequest = {
@@ -125,7 +125,7 @@ export default function PortalHomePage() {
     return "hidden";
   };
 
-  const appHref = (app: (typeof APP_CATALOG)[number]) => app.launchPath ?? app.launchUrl;
+  const appHref = (app: (typeof APP_CATALOG)[number]) => appLaunchHref(app, activeProfile._id);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">

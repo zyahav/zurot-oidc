@@ -116,3 +116,11 @@ export const APP_CATALOG: ZurotApp[] = [
 ];
 
 export const APP_BY_ID = new Map(APP_CATALOG.map(app => [app.id, app]));
+
+export function appLaunchHref(app: ZurotApp, activeProfileId?: string): string {
+  const base = app.launchPath ?? app.launchUrl;
+  if (app.id !== "meta-control-room" || !activeProfileId) return base;
+  const url = new URL(app.launchUrl);
+  url.searchParams.set("profile_hint", activeProfileId);
+  return url.toString();
+}

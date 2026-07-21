@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { useActiveProfileGuard } from "../../../_guards/use-active-profile-guard";
-import { APP_BY_ID } from "@/lib/app-catalog";
+import { APP_BY_ID, appLaunchHref } from "@/lib/app-catalog";
 import { api } from "../../../../../convex/_generated/api";
 
 type AccessRequest = {
@@ -18,7 +18,7 @@ export default function PortalAppDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isLoaded, isSignedIn, activeProfile, shouldRedirectToProfiles } = useActiveProfileGuard();
   const app = APP_BY_ID.get(id);
-  const launchHref = app?.launchPath ?? app?.launchUrl ?? `/launch/${id}`;
+  const launchHref = app ? appLaunchHref(app, activeProfile?._id) : `/launch/${id}`;
   const requestAccess = useMutation(api.profiles.requestAccess);
   const disabledApps = useQuery(
     api.profiles.getDisabledApps,
