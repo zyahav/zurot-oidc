@@ -98,6 +98,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [requestNotes, setRequestNotes] = useState<Record<string, string>>({});
   const [requestBusyId, setRequestBusyId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<"profile" | "apps" | "activity">("profile");
 
   const profiles = useMemo(() => (profilesRaw ?? []) as HubProfile[], [profilesRaw]);
   const canAddProfile = profiles.length < 10;
@@ -188,6 +189,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     setPinInput("");
     setPinError(null);
     setShowDeleteConfirm(false);
+    setActiveSection("profile");
   }, [selectedProfile]);
 
   const createProfile = useMutation(api.profiles.createProfile);
@@ -740,24 +742,33 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   return (
     <>
       <main className="min-h-screen bg-zinc-950 px-4 py-6 text-zinc-100 md:px-6">
-        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 md:grid-cols-[300px_1fr]">
-          <aside className="sticky top-4 h-fit rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-xl">
-            <Link href="/profiles" className="text-sm text-zinc-300 underline">
-              ← Back to profiles
-            </Link>
-            <div className="mt-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">ZurOt</p>
-              <h2 className="mt-1 text-lg font-semibold">Manage Profiles</h2>
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-[260px_1fr]">
+          <aside className="h-fit rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-xl md:sticky md:top-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Link href="/profiles" className="text-sm text-zinc-300 underline">
+                  ← Profiles
+                </Link>
+                <p className="mt-3 text-xs uppercase tracking-[0.2em] text-zinc-500">ZurOt</p>
+                <h2 className="mt-1 text-lg font-semibold">Manage Profiles</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSignOutModal(true)}
+                className="text-xs text-zinc-400 underline hover:text-zinc-200 md:hidden"
+              >
+                Sign out
+              </button>
             </div>
 
-            <div className="mt-5 space-y-2">
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-2 md:block md:space-y-2 md:overflow-visible md:pb-0">
               {profiles.map(profile => {
                 const selected = selectedProfile?._id === profile._id;
                 return (
                   <Link
                     key={profile._id}
                     href={`/profiles/manage/${profile._id}`}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
+                    className={`flex min-w-[170px] items-center gap-3 rounded-xl border px-3 py-2 md:min-w-0 ${
                       selected ? "border-zinc-100 bg-zinc-100 text-zinc-900" : "border-zinc-700 bg-zinc-950 text-zinc-100"
                     }`}
                   >
@@ -776,20 +787,17 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                   </Link>
                 );
               })}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-dashed border-zinc-600 bg-zinc-950 p-3">
               <button
                 type="button"
                 onClick={() => (canAddProfile ? setShowAddModal(true) : setSidebarMessage("Maximum of 10 profiles reached."))}
-                className="w-full text-left text-sm font-medium text-zinc-200"
+                className="min-w-[150px] rounded-xl border border-dashed border-zinc-600 bg-zinc-950 px-3 py-2 text-left text-sm font-medium text-zinc-200 md:mt-4 md:w-full md:min-w-0"
               >
                 + Add new profile
               </button>
-              {sidebarMessage ? <p className="mt-2 text-xs text-amber-300">{sidebarMessage}</p> : null}
             </div>
+            {sidebarMessage ? <p className="mt-2 text-xs text-amber-300">{sidebarMessage}</p> : null}
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 hidden text-center md:block">
               <button
                 type="button"
                 onClick={() => setShowSignOutModal(true)}
@@ -807,7 +815,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
               </div>
             ) : (
               <>
-                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
+                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-4 sm:p-6">
                   <div className="flex flex-wrap items-center gap-4">
                     <ProfileAvatar
                       emoji={selectedProfile.emoji}
@@ -842,14 +850,38 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                   </div>
                 </section>
 
-                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <nav aria-label="Profile management sections" className="grid grid-cols-3 gap-1 rounded-2xl border border-zinc-700 bg-zinc-900 p-1.5">
+                  {([
+                    ["profile", "Profile"],
+                    ["apps", "Apps"],
+                    ["activity", "Activity"],
+                  ] as const).map(([section, label]) => (
+                    <button
+                      key={section}
+                      type="button"
+                      onClick={() => setActiveSection(section)}
+                      aria-current={activeSection === section ? "page" : undefined}
+                      className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                        activeSection === section
+                          ? "bg-zinc-100 text-zinc-950"
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+
+                {activeSection === "activity" ? (
+                  <>
+                <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                   <MetricCard label="Total time" value={`${totalMinutes} min`} />
                   <MetricCard label="Sessions" value={`${sessionsCount}`} />
                   <MetricCard label="Last seen" value={lastSeen ? formatDateTime(lastSeen) : "No activity"} />
                   <MetricCard label="Apps enabled" value={`${enabledAppsCount} / ${APP_CATALOG.length}`} />
                 </section>
 
-                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
+                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold">Requests</h2>
                   {accessRequests === undefined ? (
                     <p className="mt-3 text-sm text-zinc-400">Loading requests...</p>
@@ -951,7 +983,10 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                     </div>
                   )}
                 </section>
+                  </>
+                ) : null}
 
+                {activeSection === "apps" ? (
                 <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
                   <h2 className="text-lg font-semibold">App Access</h2>
                   <p className="mt-1 text-sm text-zinc-400">Toggle apps on/off for this profile. Changes apply immediately.</p>
@@ -980,7 +1015,10 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                     })}
                   </div>
                 </section>
+                ) : null}
 
+                {activeSection === "profile" ? (
+                  <>
                 <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
                   <h2 className="text-lg font-semibold">Identity</h2>
                   <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
@@ -1031,7 +1069,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
 
                       <div>
                         <p className="mb-2 text-sm font-medium text-zinc-200">Avatar</p>
-                        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                        <div className="flex gap-2 overflow-x-auto pb-2 sm:grid sm:grid-cols-6 sm:overflow-visible sm:pb-0">
                           {AVATAR_PRESETS.map(preset => {
                             const selected =
                               editableAvatar.emoji === preset.emoji && editableAvatar.color === preset.color;
@@ -1040,7 +1078,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                                 key={`${preset.emoji}-${preset.color}`}
                                 type="button"
                                 onClick={() => setEditableAvatar(preset)}
-                                className={`rounded-lg border p-2 ${
+                                className={`min-w-[70px] rounded-lg border p-2 sm:min-w-0 ${
                                   selected ? "border-zinc-100" : "border-zinc-700"
                                 }`}
                               >
@@ -1067,7 +1105,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                   </button>
                 </section>
 
-                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
+                <section className="rounded-2xl border border-zinc-700 bg-zinc-900 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold">PIN Lock</h2>
 
                   {selectedProfile.hasPin ? (
@@ -1144,7 +1182,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-red-700/70 bg-red-950/35 p-6">
+                <section className="rounded-2xl border border-red-700/70 bg-red-950/35 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-red-200">Danger Zone</h2>
                   <p className="mt-2 text-sm text-red-100/90">
                     Permanently delete {selectedProfile.name}. All activity and settings will be lost.
@@ -1188,6 +1226,8 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                     </div>
                   ) : null}
                 </section>
+                  </>
+                ) : null}
               </>
             )}
           </section>

@@ -36,6 +36,8 @@ Netflix-style profile chooser.
 - Management-only queries must not crash before bootstrap is complete.
 - Public UI errors must be concise and must not expose Convex request IDs, source
   paths, or stack traces.
+- Manage Profiles uses a compact profile switcher and separates Profile, Apps, and
+  Activity into focused sections instead of one long mobile page.
 
 ## Acceptance checks
 
@@ -48,6 +50,8 @@ Netflix-style profile chooser.
 - `/profiles/manage` no longer issues the adult-only request query before an adult
   profile exists.
 - Existing Student profile creation and profile switching continue to work.
+- Manage Profiles remains usable at phone width without stacking every management
+  control into the initial view.
 - Unit/Convex tests, lint, and production build pass.
 - Production retest succeeds with the authorized test account.
 

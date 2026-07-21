@@ -24,12 +24,13 @@
 - [ ] Verify guided owner setup on the student-only production account.
 - [ ] Verify owner profile creation, profile selection, and management entry.
 - [ ] Verify TV pairing can continue after owner setup.
+- [ ] Verify compact Manage Profiles navigation at phone and desktop widths.
 
 ### Results
 
 - Automated checks: Pending.
 - Live checks: Pre-fix failures reproduced at `2026-07-21T20:35:16Z`; sensitive values redacted.
-- Failures found: Empty-account owner-PIN/adult-profile deadlock and an unguarded owner-only management query.
+- Failures found: Empty-account owner-PIN/adult-profile deadlock, an unguarded owner-only management query, a production frontend/backend deployment mismatch, and an excessively long mobile management layout.
 - Fix commit(s): Pending.
 - Final result: Pending.
 - Reviewer approval: Zuriel authorized implementation and deployment with “go” on 2026-07-21.
