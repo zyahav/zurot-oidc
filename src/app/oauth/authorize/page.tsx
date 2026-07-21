@@ -56,7 +56,7 @@ async function createPkcePair(): Promise<{
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
-  const profiles = useQuery(api.profiles.listProfilesForUser, {});
+  const profiles = useQuery(api.profiles.getProfiles, {});
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
