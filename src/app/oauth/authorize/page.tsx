@@ -56,7 +56,11 @@ async function createPkcePair(): Promise<{
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
-  const profiles = useQuery(api.profiles.getProfiles, {});
+  const clientId = searchParams.get("client_id");
+  const profiles = useQuery(
+    api.profiles.getOAuthProfiles,
+    clientId ? { clientId } : "skip"
+  );
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,7 +81,6 @@ function AuthorizePageContent() {
   }, []);
 
   // OAuth parameters
-  const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
   const responseType = searchParams.get("response_type");
   const state = searchParams.get("state");

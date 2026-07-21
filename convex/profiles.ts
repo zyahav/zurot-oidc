@@ -269,6 +269,40 @@ export const getProfiles = query({
   },
 });
 
+export const getOAuthProfiles = query({
+  args: { clientId: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const profiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", q => q.eq("userId", identity.subject))
+      .collect();
+    const app = APP_CATALOG.find(candidate => candidate.id === args.clientId);
+    if (!app) return profiles.map(toClientProfile);
+
+    const eligible = [];
+    for (const profile of profiles) {
+      const policy = app.access[profile.role];
+      if (policy === "hidden") continue;
+      const disabled = await ctx.db
+        .query("appPermissions")
+        .withIndex("by_profile", q => q.eq("profileId", profile._id))
+        .filter(q => q.eq(q.field("appId"), app.id))
+        .first();
+      if (disabled) continue;
+      if (policy === "included") {
+        eligible.push(toClientProfile(profile));
+        continue;
+      }
+      const latest = await getLatestProductAccessRequest(ctx, profile._id, app.id);
+      if (latest?.status === "approved") eligible.push(toClientProfile(profile));
+    }
+    return eligible;
+  },
+});
+
 export const createProfile = mutation({
   args: {
     name: v.string(),

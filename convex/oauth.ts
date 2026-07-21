@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { APP_CATALOG } from "../src/lib/app-catalog";
 
 /**
  * PKCE verification helper
@@ -145,6 +146,28 @@ export const storeAuthorizationCode = mutation({
     const profile = await ctx.db.get(args.profileId);
     if (!profile || profile.userId !== args.userId) {
       throw new Error("Profile not found or not owned by current user");
+    }
+    const app = APP_CATALOG.find(candidate => candidate.id === args.clientId);
+    if (app) {
+      const policy = app.access[profile.role];
+      const disabled = await ctx.db
+        .query("appPermissions")
+        .withIndex("by_profile", q => q.eq("profileId", profile._id))
+        .filter(q => q.eq(q.field("appId"), app.id))
+        .first();
+      let permitted = policy === "included" && !disabled;
+      if (policy === "requestable" && !disabled) {
+        const requests = await ctx.db
+          .query("accessRequests")
+          .withIndex("by_profile", q => q.eq("profileId", profile._id))
+          .filter(q => q.and(
+            q.eq(q.field("productKey"), app.id),
+            q.eq(q.field("requestType"), "product_access")
+          ))
+          .collect();
+        permitted = requests.sort((a, b) => b.requestedAt - a.requestedAt)[0]?.status === "approved";
+      }
+      if (!permitted) throw new Error("Profile not permitted for this client");
     }
 
     // Cleanup expired codes first

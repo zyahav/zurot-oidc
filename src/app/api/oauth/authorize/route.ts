@@ -93,6 +93,15 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         );
       }
+      if (
+        error instanceof Error &&
+        error.message.includes("not permitted for this client")
+      ) {
+        return NextResponse.json(
+          { error: "Profile is not permitted for this application" },
+          { status: 403 }
+        );
+      }
       throw error;
     }
 
