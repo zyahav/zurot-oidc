@@ -19,6 +19,7 @@ type TvApp = {
   emoji: string;
   shortDescription: string;
   launchUrl: string;
+  launchReady: boolean;
 };
 
 type TvHome = {
@@ -252,12 +253,20 @@ export default function TvPage() {
       <section className="mx-auto mt-16 max-w-7xl">
         <h1 className="text-5xl font-bold">Your Apps</h1>
         <div className="mt-10 grid grid-cols-2 gap-6 lg:grid-cols-3">
-          {home.apps.map(app => (
+          {home.apps.map(app => app.launchReady ? (
             <a key={app.id} href={app.launchUrl} className="rounded-3xl border border-zinc-700 bg-zinc-900 p-8 transition hover:scale-[1.02] hover:border-white focus:outline-none focus:ring-4 focus:ring-white">
               <span className="text-6xl">{app.emoji}</span>
               <h2 className="mt-6 text-3xl font-bold">{app.name}</h2>
               <p className="mt-3 text-xl text-zinc-400">{app.shortDescription}</p>
+              <p className="mt-6 text-sm font-semibold uppercase tracking-[0.16em] text-emerald-300">Open on TV</p>
             </a>
+          ) : (
+            <article key={app.id} aria-disabled="true" className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-8 text-zinc-500">
+              <span className="text-6xl grayscale">{app.emoji}</span>
+              <h2 className="mt-6 text-3xl font-bold text-zinc-300">{app.name}</h2>
+              <p className="mt-3 text-xl">{app.shortDescription}</p>
+              <p className="mt-6 text-sm font-semibold uppercase tracking-[0.16em]">TV version coming soon</p>
+            </article>
           ))}
         </div>
       </section>

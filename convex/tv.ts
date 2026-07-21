@@ -287,6 +287,7 @@ export const getDeviceHome = query({
       emoji: string;
       shortDescription: string;
       launchUrl: string;
+      launchReady: boolean;
     }> = [];
 
     if (activeProfile) {
@@ -315,6 +316,7 @@ export const getDeviceHome = query({
         emoji: app.emoji,
         shortDescription: app.shortDescription,
         launchUrl: appLaunchHref(app, activeProfile._id, { tv: true }),
+        launchReady: Boolean(app.tvLaunchReady),
       }));
     }
 
@@ -492,7 +494,9 @@ export const createAuthorizationCode = mutation({
     }
 
     const app = APP_CATALOG.find(candidate => candidate.id === args.clientId);
-    if (!app?.tvCompatible) throw new Error("Application is not available on TV.");
+    if (!app?.tvCompatible || !app.tvLaunchReady) {
+      throw new Error("Application is not available on TV.");
+    }
     const disabled = await ctx.db
       .query("appPermissions")
       .withIndex("by_profile", q => q.eq("profileId", profile._id))

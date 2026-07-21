@@ -103,6 +103,7 @@ describe("TV device lifecycle", () => {
       "story-castle",
       "math-market",
     ]);
+    expect(home.apps.every(app => app.launchReady === false)).toBe(true);
 
     await t.mutation(api.tv.clearProfile, {
       deviceId: claimed.deviceId,
@@ -119,6 +120,7 @@ describe("TV device lifecycle", () => {
     });
     expect(home.apps.map(app => app.id)).toContain("meta-control-room");
     expect(home.apps.map(app => app.id)).not.toContain("devices");
+    expect(home.apps.find(app => app.id === "meta-control-room")?.launchReady).toBe(true);
 
     await t.mutation(api.tv.createAuthorizationCode, {
       deviceId: claimed.deviceId,

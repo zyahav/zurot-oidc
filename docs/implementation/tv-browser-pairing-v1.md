@@ -12,7 +12,7 @@ Status: implemented for browser-capable televisions; physical-TV acceptance pend
 6. An owner can revoke active televisions from `/devices`. The television also has a local sign-out action.
 7. Meta Control Room uses the TV session to complete its existing OIDC Authorization Code flow with nonce and S256 PKCE. It does not ask the TV user to select the same profile again.
 
-Device Manager is intentionally excluded. The portal lists only catalog entries marked `tvCompatible`; each downstream app still needs its own TV-content and remote-control acceptance before it can be described as physically certified.
+Device Manager is intentionally excluded. The portal lists only catalog entries marked `tvCompatible`. Meta Control Room is currently the only entry marked `tvLaunchReady`; the learning-product cards remain visible but disabled until their content completes TV-session and remote-control acceptance.
 
 ## Security boundaries
 

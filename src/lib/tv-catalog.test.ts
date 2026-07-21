@@ -18,6 +18,10 @@ test("TV catalog contains the approved apps and excludes Device Manager", async 
     "meta-control-room",
   ]);
   assert.equal(tvIds.includes("devices"), false);
+  assert.deepEqual(
+    APP_CATALOG.filter(app => app.tvLaunchReady).map(app => app.id),
+    ["meta-control-room"]
+  );
 });
 
 test("Meta Control Room remains hidden from student profiles", async () => {

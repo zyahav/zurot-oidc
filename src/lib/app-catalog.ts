@@ -15,6 +15,7 @@ export type ZurotApp = {
   lessonCount?: number;
   tags: string[];
   tvCompatible?: boolean;
+  tvLaunchReady?: boolean;
   isNew?: boolean;
   launchPath?: string;
 };
@@ -119,6 +120,7 @@ export const APP_CATALOG: ZurotApp[] = [
     access: { parent: "included", teacher: "included", student: "hidden" },
     tags: ["Business", "Meta", "Operations"],
     tvCompatible: true,
+    tvLaunchReady: true,
   },
 ];
 
