@@ -352,7 +352,6 @@ export const bootstrapOwnerProfile = mutation({
     name: v.string(),
     emoji: v.string(),
     color: v.string(),
-    role: v.union(v.literal("parent"), v.literal("teacher")),
     ownerPin: v.string(),
   },
   handler: async (ctx, args) => {
@@ -400,7 +399,7 @@ export const bootstrapOwnerProfile = mutation({
       name,
       emoji: args.emoji,
       color: args.color,
-      role: args.role,
+      role: "parent",
       pinHash: undefined,
       createdAt: now,
     });

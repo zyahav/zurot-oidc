@@ -1012,7 +1012,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
                       <div>
                         <p className="mb-2 text-sm font-medium text-zinc-200">Role</p>
                         <div className="flex flex-wrap gap-2">
-                          {(["student", "parent", "teacher"] as const).map(candidate => (
+                          {(["student", "parent"] as const).map(candidate => (
                             <button
                               key={candidate}
                               type="button"

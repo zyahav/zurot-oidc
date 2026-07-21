@@ -41,7 +41,7 @@ export function AddProfileModal({
       emoji: selectedPreset.emoji,
       color: selectedPreset.color,
       role,
-      ownerPin: role === "parent" || role === "teacher" ? ownerPin : undefined,
+      ownerPin: role === "student" ? undefined : ownerPin,
     });
   };
 
@@ -67,7 +67,7 @@ export function AddProfileModal({
           <div>
             <p className="mb-2 text-sm font-medium text-zinc-200">Role</p>
             <div className="flex flex-wrap gap-2">
-              {(["student", "parent", "teacher"] as const).map(candidate => (
+              {(["student", "parent"] as const).map(candidate => (
                 <button
                   key={candidate}
                   type="button"
@@ -84,7 +84,7 @@ export function AddProfileModal({
             </div>
           </div>
 
-          {role === "parent" || role === "teacher" ? (
+          {role !== "student" ? (
             <div>
               <label className="mb-2 block text-sm font-medium text-zinc-200">Owner PIN</label>
               <input

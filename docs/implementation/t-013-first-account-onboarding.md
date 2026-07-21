@@ -25,8 +25,11 @@ Netflix-style profile chooser.
 - The owner PIN remains an in-app parental boundary, not authentication.
 - An account without an adult profile and without an owner PIN is placed into a
   guided owner-setup screen.
-- One Convex mutation atomically creates the account PIN and first Parent or Teacher
-  profile. It must also recover student-only accounts produced by the old flow.
+- One Convex mutation atomically creates the account PIN and first Adult profile.
+  It must also recover student-only accounts produced by the old flow.
+- The public profile vocabulary is Adult and Kid. Existing internal Parent/Teacher
+  roles remain compatible underneath so current OIDC and app authorization behavior
+  is preserved; newly created Adult profiles use the established Parent policy.
 - Bootstrap is rejected once an owner PIN or adult profile exists.
 - Normal Student creation, profile switching, profile PINs, OIDC, and TV behavior
   remain unchanged.
@@ -56,4 +59,8 @@ Netflix-style profile chooser.
 - `src/app/profiles/page.tsx`
 - `src/app/profiles/manage/manage-dashboard.tsx`
 - `src/components/zurot/owner-onboarding.tsx`
+- `src/components/zurot/add-profile-modal.tsx`
+- `src/lib/profile-ui.ts`
+- `scripts/qa/run2.spec.ts`
+- `scripts/qa/run2-e2e.mjs`
 - task, attestation, and session evidence documents

@@ -210,7 +210,7 @@ test('Step 1 - Create profile appears immediately', async ({ page }) => {
   const profileName = uniqueProfileName();
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   // Toast OR card appearing both confirm success — toast is brief (2.6s auto-dismiss)
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
@@ -221,7 +221,7 @@ test('Step 1 - Select non-PIN profile redirects to /portal', async ({ page }) =>
   // Create profile first
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
@@ -254,7 +254,7 @@ test('Step 1 - PIN flow: set, modal, wrong attempts, cooldown, correct', async (
   // Create profile
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
@@ -373,7 +373,7 @@ test('Step 2 - Sticky header shows active profile name and emoji', async ({ page
   // Create and enter profile
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await ensurePortalHeaderVisible(page, profileName);
@@ -388,7 +388,7 @@ test('Step 2 - Profile switcher dropdown shows only Switch profile', async ({ pa
   const profileName = uniqueProfileName();
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await ensurePortalHeaderVisible(page, profileName);
@@ -403,7 +403,7 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   const profileName = uniqueProfileName();
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await ensurePortalHeaderVisible(page, profileName);
@@ -430,7 +430,7 @@ test('Step 2 - Disabled app removed from portal app grid', async ({ page }) => {
 
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
   await ensurePortalHeaderVisible(page, profileName);
@@ -456,7 +456,7 @@ test('Step 3 - Silent auth and token claims', async ({ page }) => {
   // Create profile and enter portal (this sets the active profile in Convex for this session)
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
@@ -567,7 +567,7 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   // Create profile to work with
   await page.getByRole('button', { name: /Add Profile/i }).first().click();
   await page.getByPlaceholder('e.g. Alex').fill(profileName);
-  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByRole('button', { name: 'Kid', exact: true }).click();
   await page.getByRole('button', { name: 'Create Profile' }).click();
   await expect(page.locator('button', { hasText: profileName }).first()).toBeVisible({ timeout: 10000 });
 
@@ -580,7 +580,7 @@ test('Step 4 - Full management dashboard flow', async ({ page }) => {
   // Edit name + role inline
   const updatedName = `${profileName} Renamed`;
   await page.locator('label:has-text("Name") + input').fill(updatedName);
-  await page.getByRole('button', { name: 'Teacher', exact: true }).click();
+  await page.getByRole('button', { name: 'Adult', exact: true }).click();
   await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
   await expect(page.getByText('Profile updated.', { exact: true })).toBeVisible({ timeout: 10000 });
 

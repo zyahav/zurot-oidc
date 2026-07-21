@@ -8,7 +8,6 @@ export type OwnerOnboardingValues = {
   name: string;
   emoji: string;
   color: string;
-  role: "parent" | "teacher";
   ownerPin: string;
 };
 
@@ -24,7 +23,6 @@ export function OwnerOnboarding({
   onSignOut: () => void;
 }) {
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"parent" | "teacher">("parent");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [selectedPreset, setSelectedPreset] = useState(AVATAR_PRESETS[11]);
@@ -51,7 +49,6 @@ export function OwnerOnboarding({
       name: trimmedName,
       emoji: selectedPreset.emoji,
       color: selectedPreset.color,
-      role,
       ownerPin: pin,
     });
   };
@@ -94,26 +91,6 @@ export function OwnerOnboarding({
               required
             />
           </div>
-
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium text-zinc-200">Owner role</legend>
-            <div className="grid grid-cols-2 gap-3">
-              {(["parent", "teacher"] as const).map(candidate => (
-                <button
-                  key={candidate}
-                  type="button"
-                  onClick={() => setRole(candidate)}
-                  className={`rounded-xl border px-4 py-3 text-sm font-semibold capitalize ${
-                    role === candidate
-                      ? "border-zinc-100 bg-zinc-100 text-zinc-900"
-                      : "border-zinc-600 bg-zinc-950 text-zinc-200"
-                  }`}
-                >
-                  {candidate}
-                </button>
-              ))}
-            </div>
-          </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

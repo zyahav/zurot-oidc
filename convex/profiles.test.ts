@@ -11,7 +11,6 @@ const bootstrapValues = {
   name: "Test Owner",
   emoji: "🌈",
   color: "#334155",
-  role: "parent" as const,
   ownerPin: "2468",
 };
 
