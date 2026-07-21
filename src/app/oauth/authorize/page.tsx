@@ -61,6 +61,20 @@ function AuthorizePageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const silentRefreshAttempted = useRef(false);
+  const navigationTimeout = useRef<number | null>(null);
+
+  useEffect(() => {
+    const restoreInteractiveState = () => {
+      if (navigationTimeout.current !== null) window.clearTimeout(navigationTimeout.current);
+      navigationTimeout.current = null;
+      setIsSubmitting(false);
+    };
+    window.addEventListener("pageshow", restoreInteractiveState);
+    return () => {
+      window.removeEventListener("pageshow", restoreInteractiveState);
+      if (navigationTimeout.current !== null) window.clearTimeout(navigationTimeout.current);
+    };
+  }, []);
 
   // OAuth parameters
   const clientId = searchParams.get("client_id");
@@ -146,7 +160,11 @@ function AuthorizePageContent() {
       const redirectUrl = new URL(redirectUri);
       redirectUrl.searchParams.set("code", data.code);
       redirectUrl.searchParams.set("state", state);
-      window.location.href = redirectUrl.toString();
+      navigationTimeout.current = window.setTimeout(() => {
+        setError("Authorization navigation did not complete. Please select the profile again.");
+        setIsSubmitting(false);
+      }, 10_000);
+      window.location.assign(redirectUrl.toString());
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Authorization failed";
       if (isSilentRefresh) {
@@ -327,7 +345,7 @@ function AuthorizePageContent() {
                 </div>
                 <div className="mt-3 text-center">
                   <div className="font-semibold text-white">{profile.name}</div>
-                  <div className="text-xs text-zinc-500">@{profile.handle}</div>
+                  {!profile.handle.startsWith("profile_") ? <div className="text-xs text-zinc-500">@{profile.handle}</div> : null}
                   <div className="mt-1 text-[10px] uppercase text-zinc-600">{profile.role}</div>
                 </div>
               </button>
