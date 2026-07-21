@@ -1,9 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim();
 const PROFILE_REDIRECTS = {
   fallbackRedirectUrl: "/profiles",
   forceRedirectUrl: "/profiles",
@@ -13,19 +12,9 @@ const PROFILE_REDIRECTS = {
   signUpForceRedirectUrl: "/profiles",
 } as const;
 
-function buildProfilesUrl(email: string): string {
-  const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  const base = APP_URL && APP_URL.length > 0 ? APP_URL : fallbackOrigin;
-  const url = new URL("/profiles", base);
-  if (email.trim().length > 0) {
-    url.searchParams.set("email", email);
-  }
-  return url.toString();
-}
-
 export default function RootPage() {
-  const { isLoaded } = useAuth();
-  const { openSignUp } = useClerk();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { openSignIn, openSignUp } = useClerk();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +37,24 @@ export default function RootPage() {
     });
   };
 
+  const openAccountAccess = () => {
+    if (!isLoaded) {
+      setError("Sign in is still loading. Try again in a moment.");
+      return;
+    }
+
+    if (isSignedIn) {
+      window.location.assign("/profiles");
+      return;
+    }
+
+    setError(null);
+    void openSignIn({
+      ...PROFILE_REDIRECTS,
+      initialValues: email.trim() ? { emailAddress: email.trim().toLowerCase() } : undefined,
+    });
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#090909] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(200,35,35,0.38)_0%,_rgba(9,9,9,0.92)_48%,_rgba(9,9,9,1)_100%)]" />
@@ -56,22 +63,14 @@ export default function RootPage() {
       <section className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 py-16 sm:px-10">
         <div className="mb-10 flex items-center justify-between">
           <p className="text-xl font-bold tracking-[0.26em] text-zinc-50">ZUROT</p>
-          <SignInButton
-            mode="modal"
-            fallbackRedirectUrl={PROFILE_REDIRECTS.fallbackRedirectUrl}
-            forceRedirectUrl={PROFILE_REDIRECTS.forceRedirectUrl}
-            signUpFallbackRedirectUrl={PROFILE_REDIRECTS.signUpFallbackRedirectUrl}
-            signUpForceRedirectUrl={PROFILE_REDIRECTS.signUpForceRedirectUrl}
-            initialValues={email.trim() ? { emailAddress: email.trim().toLowerCase() } : undefined}
+          <button
+            type="button"
+            onClick={openAccountAccess}
+            disabled={!isLoaded}
+            className="rounded-md border border-zinc-400/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-100 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <button
-              type="button"
-              disabled={!isLoaded}
-              className="rounded-md border border-zinc-400/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-100 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Sign in
-            </button>
-          </SignInButton>
+            {isSignedIn ? "Go to profiles" : "Sign in"}
+          </button>
         </div>
 
         <div className="max-w-3xl">
@@ -105,9 +104,14 @@ export default function RootPage() {
             {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
             <p className="mt-4 text-sm text-zinc-300">
               Already have an account?{" "}
-              <a href={buildProfilesUrl(email.trim())} className="font-semibold text-zinc-100 underline">
+              <button
+                type="button"
+                onClick={openAccountAccess}
+                disabled={!isLoaded}
+                className="font-semibold text-zinc-100 underline disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 Go to profiles
-              </a>
+              </button>
             </p>
           </form>
         </div>
