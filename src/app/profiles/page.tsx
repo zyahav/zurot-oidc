@@ -185,7 +185,7 @@ export default function ProfilesPage() {
     setSignOutBusy(true);
     try {
       await signOut();
-      window.location.href = "/profiles";
+      window.location.href = "/";
     } finally {
       setSignOutBusy(false);
     }

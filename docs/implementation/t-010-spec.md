@@ -119,7 +119,7 @@ const confirmSignOut = async () => {
   setSignOutBusy(true);
   try {
     await signOut();
-    window.location.href = "/profiles";  // hard redirect — full remount
+    window.location.href = "/";  // hard redirect to the signed-out homepage
   } finally {
     setSignOutBusy(false);
   }
@@ -134,7 +134,7 @@ const confirmSignOut = async () => {
   setSignOutBusy(true);
   try {
     await signOut();
-    window.location.href = "/profiles";  // hard redirect — full remount
+    window.location.href = "/";  // hard redirect to the signed-out homepage
   } finally {
     setSignOutBusy(false);
   }
@@ -144,7 +144,7 @@ const confirmSignOut = async () => {
 **Rules:**
 - Always close the modal (`setShowSignOutModal(false)`) as the first line — before any await
 - Do not pass `redirectUrl` to `signOut()` — handle the redirect manually with `window.location.href`
-- The redirect target is always `/profiles`
+- The redirect target is always `/`, keeping profile selection behind account authentication
 
 ---
 

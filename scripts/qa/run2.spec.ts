@@ -411,15 +411,11 @@ test('Step 2 - Switch profile returns to /profiles', async ({ page }) => {
   await page.locator('header button').first().click();
   await switchProfileToProfiles(page);
 
-  // T-010 check: sign-out should hard-redirect, and modal must not persist after sign-in.
+  // Full account sign-out returns to the public homepage and the modal must not persist after sign-in.
   await page.getByRole('button', { name: 'Sign out of account', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign out of account?' })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await page.waitForURL('**/profiles', { timeout: 10000 });
-  await expect(page.getByText('Sign in to select a profile.', { exact: true })).toBeVisible({ timeout: 10000 });
-
-  // Root stays a public landing page when signed out.
-  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${BASE_URL}/`, { timeout: 10000 });
   await expect(page.getByRole('heading', { name: 'Safe profiles and app access for every child in your home.' })).toBeVisible({ timeout: 10000 });
 
   // Sign back in and ensure sign-out modal does not persist.

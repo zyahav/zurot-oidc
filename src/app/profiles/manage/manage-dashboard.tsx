@@ -510,7 +510,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     setSignOutBusy(true);
     try {
       await signOut();
-      window.location.href = "/profiles";
+      window.location.href = "/";
     } finally {
       setSignOutBusy(false);
     }
