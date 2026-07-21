@@ -58,9 +58,6 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
   const ownerPin = useQuery(api.profiles.getOwnerPin, {});
-  const accessRequests = useQuery(api.profiles.listPendingRequests, {}) as
-    | ManagedAccessRequest[]
-    | undefined;
 
   const [unlockedUntil, setUnlockedUntil] = useState<number | null>(null);
   const [gatePinInput, setGatePinInput] = useState("");
@@ -104,6 +101,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
 
   const profiles = useMemo(() => (profilesRaw ?? []) as HubProfile[], [profilesRaw]);
   const canAddProfile = profiles.length < 10;
+  const hasAdultProfile = profiles.some(profile => profile.role === "parent" || profile.role === "teacher");
 
   const selectedProfile = useMemo(() => {
     if (profiles.length === 0) {
@@ -114,6 +112,11 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     }
     return profiles[0];
   }, [initialProfileId, profiles]);
+
+  const accessRequests = useQuery(
+    api.profiles.listPendingRequests,
+    profilesRaw !== undefined && hasAdultProfile ? {} : "skip"
+  ) as ManagedAccessRequest[] | undefined;
 
   const disabledApps = useQuery(
     api.profiles.getDisabledApps,
@@ -210,7 +213,16 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
       router.push(`/profiles/manage/${created._id}`);
       setSidebarMessage(null);
     } catch (error) {
-      setSidebarMessage(error instanceof Error ? error.message : "Failed to create profile.");
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("Maximum of 10 profiles")) {
+        setSidebarMessage("Maximum of 10 profiles reached.");
+      } else if (message.includes("Owner PIN verification required")) {
+        setSidebarMessage("Enter the correct owner PIN.");
+      } else if (message.includes("Set an owner PIN")) {
+        setSidebarMessage("Set up the owner PIN before creating an adult profile.");
+      } else {
+        setSidebarMessage("Failed to create profile. Please try again.");
+      }
     } finally {
       setCreateBusy(false);
     }

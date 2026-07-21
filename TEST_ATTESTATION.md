@@ -1,5 +1,39 @@
 # Test Attestation Log
 
+## Active Entry
+
+- Task ID: `T-013`
+- Date: `2026-07-21`
+- Branch: `codex/first-account-onboarding`
+- Commit SHA: `978869d` (starting point)
+- Spec References: `docs/implementation/t-013-first-account-onboarding.md`, `docs/implementation/t-011-spec.md`, `BASELINE.md`
+- Scope: Atomically establish the owner PIN and first adult profile for empty and student-only accounts.
+
+### Required Automated Checks
+
+- [ ] `npm test`
+- [ ] `npm run test:convex`
+- [ ] `npm run lint`
+- [ ] `npm run build`
+
+### Required Live Checks
+
+- [x] Reproduced Parent creation failure on the authorized new production account.
+- [x] Reproduced `/profiles/manage` crash after the Student-first workaround.
+- [x] Verified Student creation and switching still work before the repair.
+- [ ] Verify guided owner setup on the student-only production account.
+- [ ] Verify owner profile creation, profile selection, and management entry.
+- [ ] Verify TV pairing can continue after owner setup.
+
+### Results
+
+- Automated checks: Pending.
+- Live checks: Pre-fix failures reproduced at `2026-07-21T20:35:16Z`; sensitive values redacted.
+- Failures found: Empty-account owner-PIN/adult-profile deadlock and an unguarded owner-only management query.
+- Fix commit(s): Pending.
+- Final result: Pending.
+- Reviewer approval: Zuriel authorized implementation and deployment with “go” on 2026-07-21.
+
 Use this file as a strict audit log for each task.
 
 ## Entry Template

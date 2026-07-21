@@ -347,6 +347,72 @@ export const createProfile = mutation({
   },
 });
 
+export const bootstrapOwnerProfile = mutation({
+  args: {
+    name: v.string(),
+    emoji: v.string(),
+    color: v.string(),
+    role: v.union(v.literal("parent"), v.literal("teacher")),
+    ownerPin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await getIdentityOrThrow(ctx);
+    const name = args.name.trim();
+    if (!name || name.length > 64) {
+      throw new Error("Owner name must be between 1 and 64 characters");
+    }
+    validatePin(args.ownerPin);
+
+    const existingProfiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", q => q.eq("userId", identity.subject))
+      .collect();
+    if (existingProfiles.some(profile => profile.role === "parent" || profile.role === "teacher")) {
+      throw new Error("Account owner setup is already complete");
+    }
+    if (existingProfiles.length >= MAX_PROFILES_PER_USER) {
+      throw new Error("Maximum of 10 profiles reached");
+    }
+
+    const user = await getOrCreateUserDoc(ctx);
+    const settings = await getAccountSettingsByUserId(ctx, user._id);
+    if (settings?.ownerPinHash) {
+      throw new Error("Account owner setup is already complete");
+    }
+
+    const now = Date.now();
+    if (settings) {
+      await ctx.db.patch(settings._id, {
+        ownerPinHash: hashPin(args.ownerPin),
+        recoveryOtpHash: undefined,
+        recoveryOtpExpiresAt: undefined,
+        recoveryOtpVerifiedAt: undefined,
+      });
+    } else {
+      await ctx.db.insert("accountSettings", {
+        userId: user._id,
+        ownerPinHash: hashPin(args.ownerPin),
+      });
+    }
+
+    const profileId = await ctx.db.insert("profiles", {
+      userId: identity.subject,
+      name,
+      emoji: args.emoji,
+      color: args.color,
+      role: args.role,
+      pinHash: undefined,
+      createdAt: now,
+    });
+    const created = await ctx.db.get(profileId);
+    if (!created || created.userId !== identity.subject) {
+      throw new Error("Failed to create account owner profile");
+    }
+
+    return toClientProfile(created);
+  },
+});
+
 export const setActiveProfile = mutation({
   args: { profileId: v.id("profiles") },
   handler: async (ctx, args) => {
@@ -853,7 +919,16 @@ export const listPendingRequests = query({
   args: {},
   handler: async ctx => {
     const userId = await getUserId(ctx);
-    await assertOwnerProfileForUser(ctx, userId);
+    const ownerProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q =>
+        q.or(q.eq(q.field("role"), "parent"), q.eq(q.field("role"), "teacher"))
+      )
+      .first();
+    if (!ownerProfile) {
+      return [];
+    }
 
     const profiles = await ctx.db
       .query("profiles")

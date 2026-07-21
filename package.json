@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "node --test src/lib/*.test.ts",
-    "test:convex": "vitest run convex/tv.test.ts",
+    "test:convex": "vitest run",
     "lint": "eslint",
     "smoke:oidc": "node scripts/smoke/oidc-smoke.mjs",
     "seed:clients": "node scripts/seed/register-clients.mjs",
