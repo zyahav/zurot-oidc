@@ -80,6 +80,7 @@ export interface TokenPayload {
   clientId: string;
   accountId: string; // Required per OIDC spec v1.3
   scopes?: string[]; // Optional scopes array, format: ["product:permission"]
+  nonce?: string;
 }
 
 export async function generateIdToken(payload: TokenPayload): Promise<string> {
@@ -98,6 +99,7 @@ export async function generateIdToken(payload: TokenPayload): Promise<string> {
       userId: payload.userId,
       role: payload.role,
     },
+    ...(payload.nonce ? { nonce: payload.nonce } : {}),
   })
     .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: KEY_ID })
     .setIssuer(ISSUER)
@@ -182,6 +184,7 @@ export function getOpenIDConfiguration(baseUrl: string) {
     jwks_uri: `${baseUrl}/.well-known/jwks.json`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
+    code_challenge_methods_supported: ["S256"],
     subject_types_supported: ["public"],
     id_token_signing_alg_values_supported: ["RS256"], // Changed from HS256
     scopes_supported: ["openid", "profile"],
@@ -193,6 +196,7 @@ export function getOpenIDConfiguration(baseUrl: string) {
       "picture",
       "account_id",
       "scopes",
+      "nonce",
       "https://zurot.org/profile_context",
     ],
   };

@@ -118,6 +118,7 @@ export default defineSchema({
     consumed: v.boolean(),
     codeChallenge: v.optional(v.string()),
     codeChallengeMethod: v.optional(v.literal("S256")),
+    nonce: v.optional(v.string()),
   }).index("by_code", ["code"]),
 
   oauthClients: defineTable({

@@ -67,6 +67,9 @@ function AuthorizePageContent() {
   const redirectUri = searchParams.get("redirect_uri");
   const responseType = searchParams.get("response_type");
   const state = searchParams.get("state");
+  const nonce = searchParams.get("nonce");
+  const codeChallenge = searchParams.get("code_challenge");
+  const codeChallengeMethod = searchParams.get("code_challenge_method");
   const profileHint = searchParams.get("profile_hint");
   const prompt = searchParams.get("prompt");
   const clientValidation = useQuery(
@@ -91,7 +94,12 @@ function AuthorizePageContent() {
   }, [clientValidation, redirectUri, state]);
 
   const selectProfile = useCallback(async (profileId: string) => {
-    if (!clientId || !redirectUri || !state) {
+    if (
+      !clientId ||
+      !redirectUri ||
+      !state ||
+      (codeChallenge !== null && codeChallengeMethod !== "S256")
+    ) {
       if (isSilentRefresh) {
         redirectWithError("invalid_request", "Missing OAuth parameters");
       } else {
@@ -109,9 +117,12 @@ function AuthorizePageContent() {
     setError(null);
 
     try {
-      const { verifier, challenge } = await createPkcePair();
-      sessionStorage.setItem(`${PKCE_STORAGE_PREFIX}${state}`, verifier);
-
+      let challenge = codeChallenge;
+      if (!challenge) {
+        const pair = await createPkcePair();
+        sessionStorage.setItem(`${PKCE_STORAGE_PREFIX}${state}`, pair.verifier);
+        challenge = pair.challenge;
+      }
       const response = await fetch("/api/oauth/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,6 +131,7 @@ function AuthorizePageContent() {
           clientId,
           redirectUri,
           state,
+          nonce: nonce || undefined,
           code_challenge: challenge,
           code_challenge_method: "S256",
         }),
@@ -144,18 +156,23 @@ function AuthorizePageContent() {
         setIsSubmitting(false);
       }
     }
-  }, [clientId, clientValidation, redirectUri, state, isSilentRefresh, redirectWithError]);
+  }, [clientId, clientValidation, codeChallenge, codeChallengeMethod, redirectUri, state, nonce, isSilentRefresh, redirectWithError]);
 
   // Validate OAuth parameters
   useEffect(() => {
-    if (!clientId || !redirectUri || responseType !== "code") {
+    if (
+      !clientId ||
+      !redirectUri ||
+      responseType !== "code" ||
+      (codeChallenge !== null && codeChallengeMethod !== "S256")
+    ) {
       if (isSilentRefresh && redirectUri && state) {
         redirectWithError("invalid_request", "Missing required parameters");
       } else {
         setError("Invalid OAuth request. Missing required parameters.");
       }
     }
-  }, [clientId, redirectUri, responseType, isSilentRefresh, redirectWithError, state]);
+  }, [clientId, redirectUri, responseType, nonce, codeChallenge, codeChallengeMethod, isSilentRefresh, redirectWithError, state]);
 
   useEffect(() => {
     if (!clientId || !redirectUri || clientValidation === undefined) return;

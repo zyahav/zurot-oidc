@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
       clientId,
       accountId: `account_${result.userId}`, // Per OIDC spec v1.3: account_id as metadata
       scopes, // Translated scopes from persona
+      nonce: result.nonce,
     };
 
     const idToken = await generateIdToken(tokenPayload);

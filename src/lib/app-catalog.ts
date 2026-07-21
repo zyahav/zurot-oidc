@@ -102,6 +102,17 @@ export const APP_CATALOG: ZurotApp[] = [
     access: { parent: "included", teacher: "included", student: "requestable" },
     tags: ["Devices", "Management"],
   },
+  {
+    id: "meta-control-room",
+    name: "Meta Control Room",
+    emoji: "📊",
+    shortDescription: "Operate ZurOt leads and Meta conversations.",
+    description:
+      "The private ZurOt workspace for lead operations, Meta lifecycle evidence, and team coordination.",
+    launchUrl: "https://meta.zurot.org/auth/login",
+    access: { parent: "included", teacher: "included", student: "hidden" },
+    tags: ["Business", "Meta", "Operations"],
+  },
 ];
 
 export const APP_BY_ID = new Map(APP_CATALOG.map(app => [app.id, app]));

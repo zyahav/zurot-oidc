@@ -139,6 +139,7 @@ export const storeAuthorizationCode = mutation({
     expiresAt: v.number(),
     codeChallenge: v.string(),
     codeChallengeMethod: v.literal("S256"),
+    nonce: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get(args.profileId);
@@ -166,6 +167,7 @@ export const storeAuthorizationCode = mutation({
       consumed: false,
       codeChallenge: args.codeChallenge,
       codeChallengeMethod: args.codeChallengeMethod,
+      nonce: args.nonce,
     });
   },
 });
@@ -246,6 +248,7 @@ export const consumeAuthorizationCode = mutation({
         avatarUrl: undefined,
       },
       userId: profile.userId,
+      nonce: authCode.nonce,
     };
   },
 });
