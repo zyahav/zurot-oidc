@@ -58,6 +58,7 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
   const router = useRouter();
   const profilesRaw = useQuery(api.profiles.getProfiles, {});
   const ownerPin = useQuery(api.profiles.getOwnerPin, {});
+  const revokeAllTvDevices = useMutation(api.tv.revokeAllForCurrentUser);
 
   const [unlockedUntil, setUnlockedUntil] = useState<number | null>(null);
   const [gatePinInput, setGatePinInput] = useState("");
@@ -523,8 +524,11 @@ export function ManageDashboard({ initialProfileId }: { initialProfileId?: strin
     setShowSignOutModal(false);
     setSignOutBusy(true);
     try {
+      await revokeAllTvDevices({});
       await signOut();
       window.location.href = "/";
+    } catch {
+      pushToast("Couldn’t securely sign out connected TVs. Please try again.");
     } finally {
       setSignOutBusy(false);
     }

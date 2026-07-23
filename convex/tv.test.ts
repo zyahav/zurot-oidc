@@ -208,4 +208,60 @@ describe("TV device lifecycle", () => {
       pin: PROFILE_PIN,
     })).toMatchObject({ selected: false, error: "pin_locked" });
   });
+
+  it("revokes every active TV when the account signs out", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+    const deviceCredentials = [];
+
+    for (const deviceName of ["Living Room", "Bedroom"]) {
+      const pairing = await t.mutation(api.tv.startPairing, {});
+      await owner.mutation(api.tv.approvePairing, {
+        pairingId: pairing.pairingId,
+        userCode: pairing.userCode,
+        deviceName,
+        ownerPin: OWNER_PIN,
+      });
+      const claimed = await t.mutation(api.tv.claimPairing, {
+        pairingId: pairing.pairingId,
+        deviceToken: pairing.deviceToken,
+      });
+      deviceCredentials.push({
+        deviceId: claimed.deviceId,
+        deviceToken: pairing.deviceToken,
+      });
+    }
+
+    expect(await owner.query(api.tv.listDevices, { ownerPin: OWNER_PIN })).toHaveLength(2);
+    expect(await owner.mutation(api.tv.revokeAllForCurrentUser, {})).toEqual({
+      revoked: true,
+      revokedCount: 2,
+    });
+    expect(await owner.query(api.tv.listDevices, { ownerPin: OWNER_PIN })).toHaveLength(0);
+
+    for (const credential of deviceCredentials) {
+      await expect(t.query(api.tv.getDeviceHome, credential)).rejects.toThrow(
+        "TV session is not active."
+      );
+    }
+    expect(await owner.mutation(api.tv.revokeAllForCurrentUser, {})).toEqual({
+      revoked: true,
+      revokedCount: 0,
+    });
+    await expect(t.mutation(api.tv.revokeAllForCurrentUser, {})).rejects.toThrow(
+      "Not authenticated."
+    );
+
+    const anotherPairing = await t.mutation(api.tv.startPairing, {});
+    await owner.mutation(api.tv.approvePairing, {
+      pairingId: anotherPairing.pairingId,
+      userCode: anotherPairing.userCode,
+      deviceName: "Kitchen",
+      ownerPin: OWNER_PIN,
+    });
+    expect(await owner.mutation(api.tv.revokeAllDevices, {
+      ownerPin: OWNER_PIN,
+    })).toEqual({ revoked: true, revokedCount: 1 });
+  });
 });

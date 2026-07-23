@@ -9,7 +9,10 @@ Status: implemented for browser-capable televisions; physical-TV acceptance pend
 3. The account owner scans the QR code with the phone camera, signs in to ZurOt if necessary, names the television, and enters the existing four-digit account-owner PIN.
 4. The television receives a revocable, one-year device session in an HttpOnly cookie and displays `Who's Watching?`.
 5. Profile ownership, profile PINs, app permissions, and role visibility are enforced by the backend before the TV stores an active profile or lists apps.
-6. An owner can revoke active televisions from `/devices`. The television also has a local sign-out action.
+6. An owner can revoke one active television or sign out all televisions from
+   `/devices`. ZurOt account sign-out also revokes all connected televisions
+   before ending the account session. The television has a local sign-out
+   action as well.
 7. Meta Control Room uses the TV session to complete its existing OIDC Authorization Code flow with nonce and S256 PKCE. It does not ask the TV user to select the same profile again.
 
 Device Manager is intentionally excluded. The portal lists only catalog entries marked `tvCompatible`. Meta Control Room is currently the only entry marked `tvLaunchReady`; the learning-product cards remain visible but disabled until their content completes TV-session and remote-control acceptance.

@@ -11,10 +11,12 @@ export default function DevicesPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const convex = useConvex();
   const revokeDevice = useMutation(api.tv.revokeDevice);
+  const revokeAllDevices = useMutation(api.tv.revokeAllDevices);
   const [pinInput, setPinInput] = useState("");
   const [ownerPin, setOwnerPin] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
   const devices = useQuery(api.tv.listDevices, ownerPin ? { ownerPin } : "skip");
 
   const unlock = async (event: FormEvent) => {
@@ -41,6 +43,20 @@ export default function DevicesPage() {
       await revokeDevice({ deviceId: deviceId as Id<"tvDevices">, ownerPin });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to remove this TV.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const revokeAll = async () => {
+    if (!ownerPin) return;
+    setBusyId("all");
+    setError(null);
+    try {
+      await revokeAllDevices({ ownerPin });
+      setConfirmAll(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to sign out every TV.");
     } finally {
       setBusyId(null);
     }
@@ -80,6 +96,42 @@ export default function DevicesPage() {
           <div><p className="text-sm font-bold tracking-[0.2em] text-zinc-500">ZUROT</p><h1 className="mt-2 text-4xl font-bold">Manage Devices</h1></div>
           <Link href="/profiles" className="rounded-xl border border-zinc-700 px-4 py-2">Back to Profiles</Link>
         </header>
+        {devices && devices.length > 0 ? (
+          confirmAll ? (
+            <div className="mt-8 rounded-2xl border border-red-800 bg-red-950/40 p-5">
+              <p className="font-semibold text-red-100">Sign out every connected TV?</p>
+              <p className="mt-1 text-sm text-red-200/80">
+                Each TV will return to the QR sign-in screen. Profiles and account settings stay saved.
+              </p>
+              <div className="mt-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmAll(false)}
+                  disabled={busyId !== null}
+                  className="rounded-xl border border-zinc-600 px-4 py-2 text-zinc-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => void revokeAll()}
+                  disabled={busyId !== null}
+                  className="rounded-xl bg-red-600 px-5 py-2 font-semibold text-white disabled:opacity-50"
+                >
+                  {busyId === "all" ? "Signing out every TV…" : "Yes, sign out all TVs"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setConfirmAll(true)}
+                disabled={busyId !== null}
+                className="rounded-xl bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                Sign out all TVs
+              </button>
+            </div>
+          )
+        ) : null}
         {error ? <p className="mt-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-200">{error}</p> : null}
         <section className="mt-10 space-y-4">
           {devices === undefined ? <p className="text-zinc-400">Loading devices…</p> : null}
