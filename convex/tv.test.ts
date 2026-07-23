@@ -55,6 +55,29 @@ async function seedAccount(t: ReturnType<typeof convexTest>) {
 }
 
 describe("TV device lifecycle", () => {
+  it("resolves a current TV code only for a signed-in account owner", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+    const pairing = await t.mutation(api.tv.startPairing, {});
+
+    await expect(t.mutation(api.tv.resolveManualPairing, {
+      userCode: pairing.userCode,
+    })).rejects.toThrow("Sign in as the account owner");
+
+    expect(await owner.mutation(api.tv.resolveManualPairing, {
+      userCode: pairing.userCode.toLowerCase(),
+    })).toMatchObject({
+      found: true,
+      pairingId: pairing.pairingId,
+      userCode: pairing.userCode,
+    });
+
+    expect(await owner.mutation(api.tv.resolveManualPairing, {
+      userCode: "AAAA-AAAA",
+    })).toMatchObject({ found: false, error: "invalid_code" });
+  });
+
   it("pairs, claims, selects profiles, filters apps, creates OIDC code, and revokes", async () => {
     const t = convexTest(schema, modules);
     const { ownerProfileId, childProfileId } = await seedAccount(t);

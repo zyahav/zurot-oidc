@@ -152,7 +152,9 @@ export default defineSchema({
     pinLockedUntil: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_status_expiry", ["status", "expiresAt"]),
+  })
+    .index("by_status_expiry", ["status", "expiresAt"])
+    .index("by_user_code", ["userCode"]),
 
   tvDevices: defineTable({
     userId: v.id("users"),

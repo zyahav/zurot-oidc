@@ -4,7 +4,9 @@ Status: implemented for browser-capable televisions; physical-TV acceptance pend
 
 ## Product contract
 
-1. A television opens `/tv` and receives a QR code plus an eight-character user code.
+1. A television opens `/tv` and receives a QR code plus an eight-character
+   user code. If the camera cannot scan the QR, the account owner opens
+   `/tv/connect` and types the visible code.
 2. The QR code expires after ten minutes and the TV automatically requests a replacement.
 3. The account owner scans the QR code with the phone camera, signs in to ZurOt if necessary, names the television, and enters the existing four-digit account-owner PIN.
 4. The television receives a revocable, one-year device session in an HttpOnly cookie and displays `Who's Watching?`.
@@ -20,6 +22,9 @@ Device Manager is intentionally excluded. The portal lists only catalog entries 
 - Pairing approval requires both an authenticated owner account and the account-owner PIN.
 - Owner-PIN and profile-PIN entry lock for 30 seconds after five failed attempts.
 - State-changing TV endpoints require an exact same-origin `Origin` header.
+- Manual code resolution requires a signed-in account owner. The resolver
+  accepts only the restricted eight-character format and returns only a
+  still-pending, unexpired pairing.
 - Invalid, expired, claimed, revoked, cross-account, and permission-denied requests fail closed.
 - TV OIDC authorization accepts only a registered client and redirect URI, the currently active TV profile, an allowed TV app, a nonce, and an S256 PKCE challenge.
 - Device revocation takes effect on the next TV API request.
