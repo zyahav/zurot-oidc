@@ -34,6 +34,19 @@ test("Meta Control Room remains hidden from student profiles", async () => {
   assert.equal(meta.access.teacher, "included");
 });
 
+test("Meetings is available to every profile role at its external launch URL", async () => {
+  const { APP_BY_ID } = await loadCatalog();
+  const meetings = APP_BY_ID.get("meetings");
+
+  assert.ok(meetings);
+  assert.equal(meetings.launchUrl, "https://meeting.zurot.org");
+  assert.deepEqual(meetings.access, {
+    parent: "included",
+    teacher: "included",
+    student: "included",
+  });
+});
+
 test("Meta launch carries only the selected profile hint", async () => {
   const { APP_BY_ID, appLaunchHref } = await loadCatalog();
   const meta = APP_BY_ID.get("meta-control-room");

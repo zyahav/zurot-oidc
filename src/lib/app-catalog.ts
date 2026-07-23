@@ -110,6 +110,17 @@ export const APP_CATALOG: ZurotApp[] = [
     tags: ["Devices", "Management"],
   },
   {
+    id: "meetings",
+    name: "Meetings",
+    emoji: "🎥",
+    shortDescription: "Join live, recorded ZurOt classes.",
+    description:
+      "Create or join secure ZurOt video meetings with a host-managed waiting room and automatic recording.",
+    launchUrl: "https://meeting.zurot.org",
+    access: { parent: "included", teacher: "included", student: "included" },
+    tags: ["Meetings", "Classes", "Video"],
+  },
+  {
     id: "meta-control-room",
     name: "Meta Control Room",
     emoji: "📊",

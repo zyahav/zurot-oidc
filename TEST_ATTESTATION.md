@@ -2,6 +2,42 @@
 
 ## Active Entry
 
+- Task ID: `T-014`
+- Date: `2026-07-23`
+- Branch: `codex/meetings-stage-0`
+- Commit SHA: `a766532` (starting point)
+- Spec References: `/Users/zyahav/Documents/dev/Meetings/docs/specs/v0-meetings-spec.md` §6, §13
+- Scope: Register the confidential Meetings OAuth client, add Meetings to the app catalog, and restrict the hardcoded test client to development deployments.
+
+### Required Automated Checks
+
+- [ ] `npm test`
+- [ ] `npm run test:convex`
+- [ ] `npm run lint`
+- [ ] `npm run build`
+- [ ] `npm run smoke:oidc`
+
+### Required Live Checks
+
+- [ ] Production `meetings` client accepts both approved redirect URIs.
+- [ ] Production `meetings` client rejects a wrong secret.
+- [ ] Production `test-client` is rejected by authorization and credential validation.
+- [ ] Production discovery, JWKS, token error, userinfo error, and hub UI smoke checks pass.
+- [ ] Production hub screenshot captured after deploy.
+
+### Results
+
+- Automated checks: Pending.
+- Live checks: Pending.
+- Failures found: Pending.
+- Fix commit(s): Pending.
+- Final result: Pending.
+- Reviewer approval: Awaiting Stage 0 review.
+
+---
+
+## Prior Entry Awaiting Closeout
+
 - Task ID: `T-013`
 - Date: `2026-07-21`
 - Branch: `codex/first-account-onboarding`

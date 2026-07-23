@@ -127,6 +127,14 @@ const constantTimeEqual = (a: string, b: string): boolean => {
   return diff === 0;
 };
 
+const TEST_CLIENT_REDIRECT_URIS = [
+  "http://localhost:3000/test",
+  "http://localhost:3000/auth/callback",
+];
+
+const isTestClientBackdoorEnabled = (): boolean =>
+  process.env.ZUROT_ENVIRONMENT === "development";
+
 /**
  * Store authorization code in database
  */
@@ -367,14 +375,8 @@ export const validateClient = query({
       .first();
 
     if (!client) {
-      // For development, allow test-client
-      if (args.clientId === "test-client") {
-        if (
-          [
-            "http://localhost:3000/test",
-            "http://localhost:3000/auth/callback",
-          ].includes(args.redirectUri)
-        ) {
+      if (args.clientId === "test-client" && isTestClientBackdoorEnabled()) {
+        if (TEST_CLIENT_REDIRECT_URIS.includes(args.redirectUri)) {
           return {
             valid: true,
             clientId: "test-client",
@@ -415,11 +417,9 @@ export const validateClientCredentials = query({
 
     if (!client) {
       if (
+        isTestClientBackdoorEnabled() &&
         args.clientId === "test-client" &&
-        [
-          "http://localhost:3000/test",
-          "http://localhost:3000/auth/callback",
-        ].includes(args.redirectUri)
+        TEST_CLIENT_REDIRECT_URIS.includes(args.redirectUri)
       ) {
         return { valid: true, clientId: "test-client", tokenEndpointAuthMethod: "none" as const };
       }
