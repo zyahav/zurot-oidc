@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "request_not_accepted" }, { status: 403 });
   }
 
-  const pairing = await convexServer.mutation(api.tv.startPairing, {});
+  const pairing = await convexServer.mutation(api.tv.startPairing, {
+    platform: "web",
+  });
   const origin = new URL(request.url).origin;
   const activationUrl = new URL("/tv/activate", origin);
   activationUrl.searchParams.set("pairing", pairing.pairingId);

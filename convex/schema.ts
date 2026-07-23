@@ -136,6 +136,9 @@ export default defineSchema({
   tvPairings: defineTable({
     deviceTokenHash: v.string(),
     userCode: v.string(),
+    platform: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
     status: v.union(
       v.literal("pending"),
       v.literal("approved"),
@@ -155,6 +158,9 @@ export default defineSchema({
     userId: v.id("users"),
     name: v.string(),
     tokenHash: v.string(),
+    platform: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("revoked")),
     activeProfileId: v.optional(v.id("profiles")),
     failedProfilePinAttempts: v.optional(v.number()),

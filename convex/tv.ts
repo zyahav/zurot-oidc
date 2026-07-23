@@ -106,8 +106,12 @@ const getActiveDevice = async (
 };
 
 export const startPairing = mutation({
-  args: {},
-  handler: async ctx => {
+  args: {
+    platform: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const now = Date.now();
     const expired = await ctx.db
       .query("tvPairings")
@@ -121,6 +125,9 @@ export const startPairing = mutation({
     const pairingId = await ctx.db.insert("tvPairings", {
       deviceTokenHash: hashSecret(deviceToken),
       userCode,
+      platform: args.platform,
+      appVersion: args.appVersion,
+      deviceModel: args.deviceModel,
       status: "pending",
       expiresAt,
       createdAt: now,
@@ -245,6 +252,9 @@ export const approvePairing = mutation({
       userId: user._id,
       name: deviceName,
       tokenHash: pairing.deviceTokenHash,
+      platform: pairing.platform,
+      appVersion: pairing.appVersion,
+      deviceModel: pairing.deviceModel,
       status: "active",
       createdAt: now,
       updatedAt: now,
@@ -321,7 +331,13 @@ export const getDeviceHome = query({
     }
 
     return {
-      device: { id: device._id, name: device.name },
+      device: {
+        id: device._id,
+        name: device.name,
+        platform: device.platform,
+        appVersion: device.appVersion,
+        deviceModel: device.deviceModel,
+      },
       profiles: profiles.map(profile => ({
         id: profile._id,
         name: profile.name,
