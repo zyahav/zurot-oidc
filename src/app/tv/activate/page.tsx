@@ -87,8 +87,8 @@ function ActivateTvContent() {
         <div className="w-full max-w-md rounded-3xl border border-zinc-700 bg-zinc-900 p-8 text-center">
           <h1 className="text-3xl font-bold">TV code expired</h1>
           <p className="mt-3 text-zinc-400">Return to the TV for a new code, then scan the QR or enter the code manually.</p>
-          <Link href="/tv/connect" className="mt-7 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black">
-            Enter TV code
+          <Link href="/devices?connect=tv#connect-tv" className="mt-7 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black">
+            Manage devices
           </Link>
         </div>
       </main>
