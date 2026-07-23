@@ -54,6 +54,21 @@ export const APP_CATALOG: ZurotApp[] = [
     tvCompatible: true,
   },
   {
+    id: "buddy",
+    name: "ZurOt Buddy",
+    emoji: "🤖",
+    shortDescription: "Talk with AI friends for natural language practice.",
+    description:
+      "Choose Robo, Foxy, Astro, Luna, Milo, or Nova and practice speaking through safe, playful realtime conversations.",
+    launchUrl: "https://buddy.zurot.org/auth/login",
+    access: { parent: "included", teacher: "included", student: "included" },
+    subject: "Speaking Practice",
+    ageRange: "5-12",
+    lessonCount: 1,
+    tags: ["Speaking", "Friends", "Voice"],
+    isNew: true,
+  },
+  {
     id: "letters-lab",
     name: "Letters Lab",
     emoji: "🔤",
