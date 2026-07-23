@@ -38,7 +38,8 @@ export type Product =
   | "portal"   // Parent/Admin Portal
   | "hub"      // ZurOt Hub itself
   | "game"     // Mall Hebrew Adventures
-  | "devices"; // Android device management
+  | "devices" // Android device management
+  | "gmail";  // Gmail operations console
 
 /**
  * Scope format: "product:permission"
@@ -78,6 +79,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     hub: ["hub:profile", "hub:settings"],
     game: ["game:instructor", "game:viewer"],
     devices: ["devices:manage", "devices:view", "devices:command"],
+    gmail: ["gmail:view", "gmail:operate"],
   },
   
   student: {
@@ -87,6 +89,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     hub: ["hub:profile"],
     game: ["game:player"],
     devices: [],
+    gmail: [],
   },
   
   admin: {
@@ -96,6 +99,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     hub: ["hub:admin", "hub:profile", "hub:settings", "hub:users"],
     game: ["game:instructor", "game:viewer", "game:player", "game:observer", "game:admin"],
     devices: ["devices:admin", "devices:manage", "devices:view", "devices:command"],
+    gmail: ["gmail:admin", "gmail:view", "gmail:operate"],
   },
   
   parent: {
@@ -105,6 +109,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     hub: ["hub:profile"],
     game: ["game:observer"],
     devices: ["devices:manage", "devices:view", "devices:command"],
+    gmail: ["gmail:view", "gmail:operate"],
   },
   
   guest: {
@@ -114,6 +119,7 @@ const PERSONA_SCOPE_DEFAULTS: Record<Persona, Partial<Record<Product, Scope[]>>>
     hub: ["hub:profile"],
     game: [],
     devices: [],
+    gmail: [],
   },
 };
 
@@ -243,6 +249,7 @@ export function resolveClientToProduct(clientId: string): Product {
     "portal-client": "portal",
     "mall-hebrew-adventures": "game",
     "devices": "devices",
+    "gmail-ops": "gmail",
   };
   
   // Check exact match first
@@ -255,6 +262,7 @@ export function resolveClientToProduct(clientId: string): Product {
   if (clientId.startsWith("lms-")) return "lms";
   if (clientId.startsWith("portal-")) return "portal";
   if (clientId.startsWith("devices-")) return "devices";
+  if (clientId.startsWith("gmail-")) return "gmail";
   
   // Default to hub
   return "hub";

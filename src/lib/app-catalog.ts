@@ -122,6 +122,18 @@ export const APP_CATALOG: ZurotApp[] = [
     tvCompatible: true,
     tvLaunchReady: true,
   },
+  {
+    id: "gmail-ops",
+    name: "Gmail OPS Console",
+    emoji: "📧",
+    shortDescription: "Review Gmail operations queues safely.",
+    description:
+      "The private ZurOt Gmail operations console for readonly inbox triage, review queues, and audited operator checks.",
+    launchUrl: "https://gmail-ops.zurot.org/auth/login",
+    access: { parent: "included", teacher: "included", student: "hidden" },
+    tags: ["Gmail", "Operations", "Email"],
+    isNew: true,
+  },
 ];
 
 export const APP_BY_ID = new Map(APP_CATALOG.map(app => [app.id, app]));
@@ -132,7 +144,7 @@ export function appLaunchHref(
   options?: { tv?: boolean }
 ): string {
   const base = app.launchPath ?? app.launchUrl;
-  if (app.id !== "meta-control-room" || !activeProfileId) return base;
+  if (!["meta-control-room", "gmail-ops"].includes(app.id) || !activeProfileId) return base;
   const url = new URL(app.launchUrl);
   url.searchParams.set("profile_hint", activeProfileId);
   if (options?.tv) url.searchParams.set("tv", "1");
