@@ -10,6 +10,7 @@
 
 import type * as activities from "../activities.js";
 import type * as http from "../http.js";
+import type * as media from "../media.js";
 import type * as oauth from "../oauth.js";
 import type * as profiles from "../profiles.js";
 import type * as tv from "../tv.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   activities: typeof activities;
   http: typeof http;
+  media: typeof media;
   oauth: typeof oauth;
   profiles: typeof profiles;
   tv: typeof tv;

@@ -15,6 +15,8 @@ export default defineSchema({
     name: v.string(),
     emoji: v.string(),
     color: v.string(),
+    nativeLanguageCode: v.optional(v.string()),
+    learningLanguageCode: v.optional(v.string()),
     role: v.union(
       v.literal("student"),
       v.literal("parent"),
@@ -101,6 +103,48 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerProfileId"])
     .index("by_artifact", ["artifactId"]),
+
+  mediaItems: defineTable({
+    ownerUserId: v.id("users"),
+    creatorProfileId: v.id("profiles"),
+    provider: v.literal("bunny_stream"),
+    providerVideoId: v.optional(v.string()),
+    title: v.string(),
+    description: v.optional(v.string()),
+    nativeLanguageCode: v.optional(v.string()),
+    learningLanguageCode: v.optional(v.string()),
+    ageBand: v.optional(v.string()),
+    visibility: v.union(
+      v.literal("private"),
+      v.literal("family"),
+      v.literal("public")
+    ),
+    moderationStatus: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    status: v.union(
+      v.literal("created"),
+      v.literal("uploading"),
+      v.literal("processing"),
+      v.literal("ready"),
+      v.literal("failed"),
+      v.literal("deleted")
+    ),
+    durationSeconds: v.optional(v.number()),
+    thumbnailUrl: v.optional(v.string()),
+    availableResolutions: v.optional(v.array(v.string())),
+    idempotencyKey: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    publishedAt: v.optional(v.number()),
+  })
+    .index("by_owner", ["ownerUserId"])
+    .index("by_creator", ["creatorProfileId"])
+    .index("by_provider_video", ["provider", "providerVideoId"])
+    .index("by_status_published", ["status", "publishedAt"])
+    .index("by_owner_idempotency", ["ownerUserId", "idempotencyKey"]),
 
   activeProfiles: defineTable({
     userId: v.string(),

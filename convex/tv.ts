@@ -105,6 +105,52 @@ const getActiveDevice = async (
   return device;
 };
 
+const mediaMatchesProfileLanguages = (
+  media: {
+    nativeLanguageCode?: string;
+    learningLanguageCode?: string;
+  },
+  profile: {
+    nativeLanguageCode?: string;
+    learningLanguageCode?: string;
+  }
+) => {
+  const nativeMatches =
+    !media.nativeLanguageCode ||
+    !profile.nativeLanguageCode ||
+    media.nativeLanguageCode === profile.nativeLanguageCode;
+  const learningMatches =
+    !media.learningLanguageCode ||
+    !profile.learningLanguageCode ||
+    media.learningLanguageCode === profile.learningLanguageCode;
+  return nativeMatches && learningMatches;
+};
+
+const mediaIsVisibleToProfile = (
+  media: {
+    ownerUserId: Id<"users">;
+    creatorProfileId: Id<"profiles">;
+    visibility: "private" | "family" | "public";
+    moderationStatus: "pending" | "approved" | "rejected";
+    status: "created" | "uploading" | "processing" | "ready" | "failed" | "deleted";
+    nativeLanguageCode?: string;
+    learningLanguageCode?: string;
+  },
+  accountUserId: Id<"users">,
+  profile: {
+    _id: Id<"profiles">;
+    nativeLanguageCode?: string;
+    learningLanguageCode?: string;
+  }
+) => {
+  if (media.status !== "ready" || media.moderationStatus !== "approved") return false;
+  if (!mediaMatchesProfileLanguages(media, profile)) return false;
+  if (media.visibility === "public") return true;
+  if (media.ownerUserId !== accountUserId) return false;
+  if (media.visibility === "family") return true;
+  return media.creatorProfileId === profile._id;
+};
+
 export const startPairing = mutation({
   args: {
     platform: v.optional(v.string()),
@@ -344,6 +390,19 @@ export const getDeviceHome = query({
       launchUrl: string;
       launchReady: boolean;
     }> = [];
+    let feed: Array<{
+      id: Id<"mediaItems">;
+      kind: "video";
+      title: string;
+      description: string;
+      creatorName: string;
+      thumbnailUrl: string | null;
+      durationSeconds: number | null;
+      nativeLanguageCode: string | null;
+      learningLanguageCode: string | null;
+      publishedAt: number;
+      playbackPath: string;
+    }> = [];
 
     if (activeProfile) {
       const disabledRows = await ctx.db
@@ -373,6 +432,31 @@ export const getDeviceHome = query({
         launchUrl: appLaunchHref(app, activeProfile._id, { tv: true }),
         launchReady: Boolean(app.tvLaunchReady),
       }));
+
+      const readyMedia = await ctx.db
+        .query("mediaItems")
+        .withIndex("by_status_published", q => q.eq("status", "ready"))
+        .order("desc")
+        .take(50);
+      const visibleMedia = readyMedia
+        .filter(media => mediaIsVisibleToProfile(media, user._id, activeProfile))
+        .slice(0, 30);
+      feed = await Promise.all(visibleMedia.map(async media => {
+        const creator = await ctx.db.get(media.creatorProfileId);
+        return {
+          id: media._id,
+          kind: "video" as const,
+          title: media.title,
+          description: media.description ?? "",
+          creatorName: creator?.name ?? "ZurOt Creator",
+          thumbnailUrl: media.thumbnailUrl ?? null,
+          durationSeconds: media.durationSeconds ?? null,
+          nativeLanguageCode: media.nativeLanguageCode ?? null,
+          learningLanguageCode: media.learningLanguageCode ?? null,
+          publishedAt: media.publishedAt ?? media.updatedAt,
+          playbackPath: `/api/tv/v1/media/${media._id}/playback`,
+        };
+      }));
     }
 
     return {
@@ -389,6 +473,8 @@ export const getDeviceHome = query({
         emoji: profile.emoji,
         color: profile.color,
         role: profile.role,
+        nativeLanguageCode: profile.nativeLanguageCode ?? null,
+        learningLanguageCode: profile.learningLanguageCode ?? null,
         hasPin: Boolean(profile.pinHash),
       })),
       activeProfile: activeProfile
@@ -398,9 +484,42 @@ export const getDeviceHome = query({
             emoji: activeProfile.emoji,
             color: activeProfile.color,
             role: activeProfile.role,
+            nativeLanguageCode: activeProfile.nativeLanguageCode ?? null,
+            learningLanguageCode: activeProfile.learningLanguageCode ?? null,
           }
         : null,
+      feed,
       apps,
+    };
+  },
+});
+
+export const authorizeMediaPlayback = query({
+  args: {
+    deviceId: v.id("tvDevices"),
+    deviceToken: v.string(),
+    mediaId: v.id("mediaItems"),
+  },
+  handler: async (ctx, args) => {
+    const device = await getActiveDevice(ctx, args.deviceId, args.deviceToken);
+    if (!device.activeProfileId) throw new Error("Select a profile before playback.");
+    const [user, profile, media] = await Promise.all([
+      ctx.db.get(device.userId),
+      ctx.db.get(device.activeProfileId),
+      ctx.db.get(args.mediaId),
+    ]);
+    if (!user || !profile || !media) throw new Error("Media is unavailable.");
+    if (!mediaIsVisibleToProfile(media, user._id, profile)) {
+      throw new Error("Media is not authorized for this profile.");
+    }
+    if (!media.providerVideoId) throw new Error("Media is not ready for playback.");
+
+    return {
+      mediaId: media._id,
+      provider: media.provider,
+      providerVideoId: media.providerVideoId,
+      title: media.title,
+      durationSeconds: media.durationSeconds ?? null,
     };
   },
 });

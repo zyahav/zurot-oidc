@@ -37,14 +37,26 @@ The existing `/api/tv/*` routes remain the browser transport for `app.zurot.org/
 ## Authenticated resources
 
 - `GET /api/tv/v1/home`
+- `POST /api/tv/v1/media/{mediaId}/playback`
 - `POST /api/tv/v1/profiles/select`
 - `POST /api/tv/v1/profiles/clear`
 - `POST /api/tv/v1/device/revoke`
 
 The native API reuses the same Convex authorization and profile rules as the browser TV experience. It does not duplicate content ownership or identity logic.
 
+The home response includes `feed`, a recency-ordered list of uploaded videos
+that are ready, approved, visible to the active profile, and compatible with
+that profile's native/learning language pair. Feed cards contain metadata,
+thumbnails, and an internal `playbackPath`; permanent Bunny URLs and provider
+credentials are never returned in the home response.
+
+When a viewer opens a feed card, the TV posts to its `playbackPath`. The Hub
+revalidates the device, active profile, family visibility, moderation state,
+and language pair, then returns a short-lived HLS session.
+
 ## Platform differences
 
 Platform clients own presentation, remote/focus behavior, local credential storage, playback implementation, packaging, and store assets. The shared API owns identity, profiles, catalog data, permissions, and revocation.
 
-Playback negotiation will be added to the shared contract using registered device capabilities rather than platform-specific content APIs.
+Playback negotiation remains provider-neutral and will use registered device
+capabilities rather than platform-specific content APIs.
