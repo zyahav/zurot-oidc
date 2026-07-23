@@ -25,7 +25,7 @@ test('Homepage - email submit opens account creation', async ({ page }) => {
   await page.getByRole('button', { name: 'Get Started', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Create your account', exact: true })).toBeVisible({ timeout: 10000 });
-  await expect(page.getByRole('textbox', { name: 'Email address', exact: true })).toHaveValue('new.parent@example.com');
+  await expect(page.getByPlaceholder('Enter your email address', { exact: true })).toHaveValue('new.parent@example.com');
 });
 
 test('Homepage - Go to profiles opens sign-in directly when signed out', async ({ page }) => {
