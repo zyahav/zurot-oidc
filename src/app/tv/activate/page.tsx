@@ -59,6 +59,28 @@ function ActivateTvContent() {
     return <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">Checking TV code…</main>;
   }
 
+  // Convex updates the pairing from pending to approved before the mutation
+  // response reaches this client. That makes getActivationDetails return null
+  // while the TV is successfully claiming its credential. Keep the in-flight
+  // and completed states ahead of the expired-code branch so a successful
+  // connection cannot be misreported as expired.
+  if (connected) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
+        <div className="w-full max-w-md rounded-3xl border border-emerald-700 bg-emerald-950 p-8 text-center">
+          <p className="text-5xl">✓</p>
+          <h1 className="mt-4 text-3xl font-bold">TV connected</h1>
+          <p className="mt-3 text-emerald-100">You can return to the television and choose a profile.</p>
+          <Link href="/devices" className="mt-7 inline-block text-sm underline">Manage Devices</Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (busy && validRequest && details === null) {
+    return <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">Finishing TV connection…</main>;
+  }
+
   if (!validRequest || details === null) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
@@ -84,19 +106,6 @@ function ActivateTvContent() {
           <SignInButton mode="modal">
             <button className="mt-7 w-full rounded-xl bg-white px-5 py-3 font-semibold text-black">Sign in</button>
           </SignInButton>
-        </div>
-      </main>
-    );
-  }
-
-  if (connected) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
-        <div className="w-full max-w-md rounded-3xl border border-emerald-700 bg-emerald-950 p-8 text-center">
-          <p className="text-5xl">✓</p>
-          <h1 className="mt-4 text-3xl font-bold">TV connected</h1>
-          <p className="mt-3 text-emerald-100">You can return to the television and choose a profile.</p>
-          <Link href="/devices" className="mt-7 inline-block text-sm underline">Manage Devices</Link>
         </div>
       </main>
     );
