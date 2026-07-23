@@ -41,6 +41,8 @@ async function seedAccount(t: ReturnType<typeof convexTest>) {
       name: "Child",
       emoji: "🦁",
       color: "#312e81",
+      nativeLanguageCode: "he",
+      learningLanguageCode: "en",
       role: "student",
       pinHash: hex(sha256(PROFILE_PIN)),
       createdAt: now,
@@ -50,7 +52,7 @@ async function seedAccount(t: ReturnType<typeof convexTest>) {
       redirectUris: [META_REDIRECT],
       tokenEndpointAuthMethod: "client_secret_post",
     });
-    return { ownerProfileId, childProfileId };
+    return { userId, ownerProfileId, childProfileId };
   });
 }
 
@@ -80,7 +82,7 @@ describe("TV device lifecycle", () => {
 
   it("pairs, claims, selects profiles, filters apps, creates OIDC code, and revokes", async () => {
     const t = convexTest(schema, modules);
-    const { ownerProfileId, childProfileId } = await seedAccount(t);
+    const { userId, ownerProfileId, childProfileId } = await seedAccount(t);
     const owner = t.withIdentity({ subject: OWNER_SUBJECT });
 
     const pairing = await t.mutation(api.tv.startPairing, {});
@@ -127,6 +129,58 @@ describe("TV device lifecycle", () => {
       "math-market",
     ]);
     expect(home.apps.every(app => app.launchReady === false)).toBe(true);
+
+    const visibleMediaId = await t.run(async ctx => {
+      const now = Date.now();
+      const visible = await ctx.db.insert("mediaItems", {
+        ownerUserId: userId,
+        creatorProfileId: childProfileId,
+        provider: "bunny_stream",
+        providerVideoId: "visible-video",
+        title: "Hebrew to English Lesson",
+        description: "A newly published family lesson",
+        nativeLanguageCode: "he",
+        learningLanguageCode: "en",
+        visibility: "family",
+        moderationStatus: "approved",
+        status: "ready",
+        durationSeconds: 485,
+        createdAt: now,
+        updatedAt: now,
+        publishedAt: now,
+      });
+      await ctx.db.insert("mediaItems", {
+        ownerUserId: userId,
+        creatorProfileId: childProfileId,
+        provider: "bunny_stream",
+        providerVideoId: "wrong-language-video",
+        title: "Spanish Lesson",
+        nativeLanguageCode: "es",
+        learningLanguageCode: "en",
+        visibility: "family",
+        moderationStatus: "approved",
+        status: "ready",
+        createdAt: now,
+        updatedAt: now,
+        publishedAt: now - 1,
+      });
+      return visible;
+    });
+    home = await t.query(api.tv.getDeviceHome, {
+      deviceId: claimed.deviceId,
+      deviceToken: pairing.deviceToken,
+    });
+    expect(home.feed.map(item => item.title)).toEqual(["Hebrew to English Lesson"]);
+    expect(home.feed[0]).toMatchObject({
+      kind: "video",
+      durationSeconds: 485,
+      playbackPath: `/api/tv/v1/media/${visibleMediaId}/playback`,
+    });
+    await expect(t.query(api.tv.authorizeMediaPlayback, {
+      deviceId: claimed.deviceId,
+      deviceToken: pairing.deviceToken,
+      mediaId: visibleMediaId,
+    })).resolves.toMatchObject({ providerVideoId: "visible-video" });
 
     await t.mutation(api.tv.clearProfile, {
       deviceId: claimed.deviceId,
