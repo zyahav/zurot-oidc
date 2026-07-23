@@ -24,6 +24,7 @@ export default function ProfilesPage() {
   const setActiveProfile = useMutation(api.profiles.setActiveProfile);
   const createProfile = useMutation(api.profiles.createProfile);
   const bootstrapOwnerProfile = useMutation(api.profiles.bootstrapOwnerProfile);
+  const revokeAllTvDevices = useMutation(api.tv.revokeAllForCurrentUser);
   const [pendingId, setPendingId] = useState<Id<"profiles"> | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -219,8 +220,11 @@ export default function ProfilesPage() {
     setShowSignOutModal(false);
     setSignOutBusy(true);
     try {
+      await revokeAllTvDevices({});
       await signOut();
       window.location.href = "/";
+    } catch {
+      pushToast("Couldn’t securely sign out connected TVs. Please try again.");
     } finally {
       setSignOutBusy(false);
     }

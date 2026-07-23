@@ -1,6 +1,8 @@
 # ZurOt native TV API v1
 
-Status: implemented in the Hub; deployment and physical-client acceptance pending.
+Status: implemented in the Hub and accepted on a physical Roku development
+channel. Production changes continue through the protected deployment
+environment.
 
 ## Purpose
 
@@ -42,6 +44,20 @@ The existing `/api/tv/*` routes remain the browser transport for `app.zurot.org/
 - `POST /api/tv/v1/device/revoke`
 
 The native API reuses the same Convex authorization and profile rules as the browser TV experience. It does not duplicate content ownership or identity logic.
+
+## Account and device revocation
+
+- An individual television can revoke itself with
+  `POST /api/tv/v1/device/revoke`.
+- The owner can revoke one television or all televisions from `/devices`;
+  both operations require the owner PIN.
+- ZurOt account sign-out revokes every active `tvDevices` record before the
+  Clerk session is ended.
+- Installed clients periodically revalidate their device credential. A revoked
+  device receives HTTP 401, deletes its local credential, and returns to
+  device-code authorization.
+- Revocation is idempotent: repeating “sign out all TVs” succeeds with a zero
+  revoked count once no active televisions remain.
 
 ## Platform differences
 

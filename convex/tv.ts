@@ -105,6 +105,27 @@ const getActiveDevice = async (
   return device;
 };
 
+const revokeActiveDevicesForUser = async (
+  ctx: MutationCtx,
+  userId: Id<"users">
+) => {
+  const devices = await ctx.db
+    .query("tvDevices")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+  const activeDevices = devices.filter(device => device.status === "active");
+  const now = Date.now();
+  await Promise.all(activeDevices.map(device =>
+    ctx.db.patch(device._id, {
+      status: "revoked",
+      activeProfileId: undefined,
+      revokedAt: now,
+      updatedAt: now,
+    })
+  ));
+  return activeDevices.length;
+};
+
 export const startPairing = mutation({
   args: {
     platform: v.optional(v.string()),
@@ -474,6 +495,29 @@ export const revokeDevice = mutation({
       updatedAt: Date.now(),
     });
     return { revoked: true };
+  },
+});
+
+export const revokeAllDevices = mutation({
+  args: { ownerPin: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated.");
+    const user = await assertAccountOwner(ctx, identity.subject, args.ownerPin);
+    const revokedCount = await revokeActiveDevicesForUser(ctx, user._id);
+    return { revoked: true, revokedCount };
+  },
+});
+
+export const revokeAllForCurrentUser = mutation({
+  args: {},
+  handler: async ctx => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated.");
+    const user = await getUserDocByClerkId(ctx, identity.subject);
+    if (!user) return { revoked: true, revokedCount: 0 };
+    const revokedCount = await revokeActiveDevicesForUser(ctx, user._id);
+    return { revoked: true, revokedCount };
   },
 });
 

@@ -20,7 +20,8 @@ export function SignOutConfirmModal({
       <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
         <h2 className="text-xl font-semibold text-white">Sign out of account?</h2>
         <p className="mt-3 text-sm text-zinc-300">
-          You will be signed out of the account, but all profiles and settings stay saved.
+          You will be signed out of this account and every connected TV. All
+          profiles and settings stay saved.
         </p>
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
