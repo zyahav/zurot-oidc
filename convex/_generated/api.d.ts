@@ -12,6 +12,8 @@ import type * as activities from "../activities.js";
 import type * as http from "../http.js";
 import type * as oauth from "../oauth.js";
 import type * as profiles from "../profiles.js";
+import type * as tv from "../tv.js";
+import type * as tzuras from "../tzuras.js";
 import type * as users from "../users.js";
 
 import type {
@@ -25,6 +27,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   oauth: typeof oauth;
   profiles: typeof profiles;
+  tv: typeof tv;
+  tzuras: typeof tzuras;
   users: typeof users;
 }>;
 

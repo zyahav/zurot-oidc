@@ -56,17 +56,37 @@ async function createPkcePair(): Promise<{
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
-  const profiles = useQuery(api.profiles.listProfilesForUser, {});
+  const clientId = searchParams.get("client_id");
+  const profiles = useQuery(
+    api.profiles.getOAuthProfiles,
+    clientId ? { clientId } : "skip"
+  );
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const silentRefreshAttempted = useRef(false);
+  const navigationTimeout = useRef<number | null>(null);
+
+  useEffect(() => {
+    const restoreInteractiveState = () => {
+      if (navigationTimeout.current !== null) window.clearTimeout(navigationTimeout.current);
+      navigationTimeout.current = null;
+      setIsSubmitting(false);
+    };
+    window.addEventListener("pageshow", restoreInteractiveState);
+    return () => {
+      window.removeEventListener("pageshow", restoreInteractiveState);
+      if (navigationTimeout.current !== null) window.clearTimeout(navigationTimeout.current);
+    };
+  }, []);
 
   // OAuth parameters
-  const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
   const responseType = searchParams.get("response_type");
   const state = searchParams.get("state");
+  const nonce = searchParams.get("nonce");
+  const codeChallenge = searchParams.get("code_challenge");
+  const codeChallengeMethod = searchParams.get("code_challenge_method");
   const profileHint = searchParams.get("profile_hint");
   const prompt = searchParams.get("prompt");
   const clientValidation = useQuery(
@@ -91,7 +111,12 @@ function AuthorizePageContent() {
   }, [clientValidation, redirectUri, state]);
 
   const selectProfile = useCallback(async (profileId: string) => {
-    if (!clientId || !redirectUri || !state) {
+    if (
+      !clientId ||
+      !redirectUri ||
+      !state ||
+      (codeChallenge !== null && codeChallengeMethod !== "S256")
+    ) {
       if (isSilentRefresh) {
         redirectWithError("invalid_request", "Missing OAuth parameters");
       } else {
@@ -109,9 +134,12 @@ function AuthorizePageContent() {
     setError(null);
 
     try {
-      const { verifier, challenge } = await createPkcePair();
-      sessionStorage.setItem(`${PKCE_STORAGE_PREFIX}${state}`, verifier);
-
+      let challenge = codeChallenge;
+      if (!challenge) {
+        const pair = await createPkcePair();
+        sessionStorage.setItem(`${PKCE_STORAGE_PREFIX}${state}`, pair.verifier);
+        challenge = pair.challenge;
+      }
       const response = await fetch("/api/oauth/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,6 +148,7 @@ function AuthorizePageContent() {
           clientId,
           redirectUri,
           state,
+          nonce: nonce || undefined,
           code_challenge: challenge,
           code_challenge_method: "S256",
         }),
@@ -134,7 +163,11 @@ function AuthorizePageContent() {
       const redirectUrl = new URL(redirectUri);
       redirectUrl.searchParams.set("code", data.code);
       redirectUrl.searchParams.set("state", state);
-      window.location.href = redirectUrl.toString();
+      navigationTimeout.current = window.setTimeout(() => {
+        setError("Authorization navigation did not complete. Please select the profile again.");
+        setIsSubmitting(false);
+      }, 10_000);
+      window.location.assign(redirectUrl.toString());
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Authorization failed";
       if (isSilentRefresh) {
@@ -144,18 +177,23 @@ function AuthorizePageContent() {
         setIsSubmitting(false);
       }
     }
-  }, [clientId, clientValidation, redirectUri, state, isSilentRefresh, redirectWithError]);
+  }, [clientId, clientValidation, codeChallenge, codeChallengeMethod, redirectUri, state, nonce, isSilentRefresh, redirectWithError]);
 
   // Validate OAuth parameters
   useEffect(() => {
-    if (!clientId || !redirectUri || responseType !== "code") {
+    if (
+      !clientId ||
+      !redirectUri ||
+      responseType !== "code" ||
+      (codeChallenge !== null && codeChallengeMethod !== "S256")
+    ) {
       if (isSilentRefresh && redirectUri && state) {
         redirectWithError("invalid_request", "Missing required parameters");
       } else {
         setError("Invalid OAuth request. Missing required parameters.");
       }
     }
-  }, [clientId, redirectUri, responseType, isSilentRefresh, redirectWithError, state]);
+  }, [clientId, redirectUri, responseType, nonce, codeChallenge, codeChallengeMethod, isSilentRefresh, redirectWithError, state]);
 
   useEffect(() => {
     if (!clientId || !redirectUri || clientValidation === undefined) return;
@@ -310,7 +348,7 @@ function AuthorizePageContent() {
                 </div>
                 <div className="mt-3 text-center">
                   <div className="font-semibold text-white">{profile.name}</div>
-                  <div className="text-xs text-zinc-500">@{profile.handle}</div>
+                  {!profile.handle.startsWith("profile_") ? <div className="text-xs text-zinc-500">@{profile.handle}</div> : null}
                   <div className="mt-1 text-[10px] uppercase text-zinc-600">{profile.role}</div>
                 </div>
               </button>

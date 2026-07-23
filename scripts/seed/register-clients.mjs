@@ -12,6 +12,16 @@ const clients = [
       "http://localhost:3000/test",
     ],
   },
+  {
+    clientId: "devices",
+    tokenEndpointAuthMethod: "none",
+    redirectUris: [
+      "https://devices.zurot.org/auth/callback",
+      "https://staging-devices.zurot.org/auth/callback",
+      "http://localhost:8787/auth/callback",
+      "http://localhost:3000/auth/callback",
+    ],
+  },
 ];
 
 function runConvexRegisterClient(client) {

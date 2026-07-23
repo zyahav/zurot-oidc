@@ -18,13 +18,20 @@ test('Homepage - invalid email shows validation message', async ({ page }) => {
   await expect(page.getByText('Enter a valid email address.', { exact: true })).toBeVisible({ timeout: 10000 });
 });
 
-test('Homepage - email submit routes new user to profiles entry', async ({ page }) => {
+test('Homepage - email submit opens account creation', async ({ page }) => {
   await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
 
   await page.getByLabel('Email address').fill('new.parent@example.com');
   await page.getByRole('button', { name: 'Get Started', exact: true }).click();
 
-  await expect(page).toHaveURL(/\/profiles\?email=new\.parent%40example\.com/, { timeout: 10000 });
-  await expect(page.getByRole('heading', { name: 'Profiles', exact: true })).toBeVisible({ timeout: 10000 });
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'Create your account', exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByPlaceholder('Enter your email address', { exact: true })).toHaveValue('new.parent@example.com');
+});
+
+test('Homepage - Go to profiles opens sign-in directly when signed out', async ({ page }) => {
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+
+  await page.getByRole('button', { name: 'Go to profiles', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Sign in to ZurOt.org', exact: true })).toBeVisible({ timeout: 10000 });
 });

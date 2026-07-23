@@ -6,14 +6,23 @@ import { SignInButton } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useActiveProfileGuard } from "../_guards/use-active-profile-guard";
-import { APP_CATALOG } from "@/lib/app-catalog";
+import { APP_CATALOG, appLaunchHref } from "@/lib/app-catalog";
 import { api } from "../../../convex/_generated/api";
+
+type AccessRequest = {
+  productKey: string;
+  status: "pending" | "approved" | "declined";
+  requestedAt: number;
+};
 
 export default function PortalHomePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, activeProfile, shouldRedirectToProfiles } = useActiveProfileGuard();
   const clearActiveProfile = useMutation(api.profiles.clearActiveProfile);
+  const requestAccess = useMutation(api.profiles.requestAccess);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [requestingAppId, setRequestingAppId] = useState<string | null>(null);
 
   const disabledApps = useQuery(
     api.profiles.getDisabledApps,
@@ -23,6 +32,10 @@ export default function PortalHomePage() {
     api.activities.listRecentForProfile,
     activeProfile ? { profileId: activeProfile._id, limit: 4 } : "skip"
   );
+  const accessRequests = useQuery(
+    api.profiles.listAccessRequestsForProfile,
+    activeProfile ? { profileId: activeProfile._id } : "skip"
+  ) as AccessRequest[] | undefined;
 
   if (!isLoaded) {
     return <main className="flex min-h-screen items-center justify-center">Loading...</main>;
@@ -55,7 +68,19 @@ export default function PortalHomePage() {
   }
 
   const hidden = new Set(disabledApps ?? []);
-  const visibleApps = APP_CATALOG.filter(app => !hidden.has(app.id));
+  const latestRequestByProduct = new Map<string, AccessRequest>();
+  for (const request of accessRequests ?? []) {
+    const current = latestRequestByProduct.get(request.productKey);
+    if (!current || request.requestedAt > current.requestedAt) {
+      latestRequestByProduct.set(request.productKey, request);
+    }
+  }
+  const visibleApps = APP_CATALOG.filter(app => {
+    if (hidden.has(app.id)) {
+      return false;
+    }
+    return app.access[activeProfile.role] !== "hidden";
+  });
   const recentIds = new Set((recentActivity ?? []).map(item => item.app));
   const continueLearning = visibleApps.filter(app => recentIds.has(app.id));
   const featured = visibleApps[0] ?? APP_CATALOG[0];
@@ -64,6 +89,43 @@ export default function PortalHomePage() {
     await clearActiveProfile({});
     router.push("/profiles");
   };
+
+  const submitRequest = async (appId: string) => {
+    if (!activeProfile) {
+      return;
+    }
+    setRequestingAppId(appId);
+    setRequestMessage(null);
+    try {
+      await requestAccess({ profileId: activeProfile._id, productKey: appId });
+      setRequestMessage("Request received — we'll update you when it has been reviewed.");
+    } catch (error) {
+      setRequestMessage(error instanceof Error ? error.message : "Failed to request access.");
+    } finally {
+      setRequestingAppId(null);
+    }
+  };
+
+  const getCardState = (appId: string) => {
+    const app = APP_CATALOG.find(candidate => candidate.id === appId);
+    const policy = app?.access[activeProfile.role] ?? "hidden";
+    const request = latestRequestByProduct.get(appId);
+    if (policy === "included" || (policy === "requestable" && request?.status === "approved")) {
+      return "open";
+    }
+    if (policy === "requestable" && request?.status === "pending") {
+      return "pending";
+    }
+    if (policy === "requestable" && request?.status === "declined") {
+      return "declined";
+    }
+    if (policy === "requestable") {
+      return "request";
+    }
+    return "hidden";
+  };
+
+  const appHref = (app: (typeof APP_CATALOG)[number]) => appLaunchHref(app, activeProfile._id);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -120,11 +182,8 @@ export default function PortalHomePage() {
               ))}
             </div>
             <div className="mt-6">
-              <Link
-                href={`/portal/app/${featured.id}`}
-                className="inline-flex rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900"
-              >
-                Launch App
+              <Link href={`/portal/app/${featured.id}`} className="inline-flex rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900">
+                View App
               </Link>
             </div>
           </div>
@@ -157,17 +216,55 @@ export default function PortalHomePage() {
 
         <section className="mt-8">
           <h2 className="mb-3 text-xl font-semibold">All Apps</h2>
+          {requestMessage ? (
+            <p className="mb-3 rounded-lg border border-emerald-700 bg-emerald-950 px-3 py-2 text-sm text-emerald-100">
+              {requestMessage}
+            </p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleApps.map(app => (
-              <Link key={app.id} href={`/portal/app/${app.id}`} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-500">
+            {visibleApps.map(app => {
+              const cardState = getCardState(app.id);
+              return (
+              <div key={app.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-3xl">{app.emoji}</p>
                   {app.isNew ? <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-emerald-950">NEW</span> : null}
                 </div>
                 <p className="mt-2 font-semibold">{app.name}</p>
                 <p className="mt-1 text-sm text-zinc-400">{app.shortDescription}</p>
-              </Link>
-            ))}
+                <div className="mt-4">
+                  {cardState === "open" ? (
+                    app.launchUrl.startsWith("https://") ? (
+                      <a href={appHref(app)} target="_blank" rel="noreferrer" className="inline-flex rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-900">
+                        Open app
+                      </a>
+                    ) : (
+                      <Link href={appHref(app)} className="inline-flex rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-900">
+                        Open app
+                      </Link>
+                    )
+                  ) : null}
+                  {cardState === "request" ? (
+                    <button
+                      type="button"
+                      onClick={() => void submitRequest(app.id)}
+                      disabled={requestingAppId === app.id}
+                      className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-900 disabled:opacity-60"
+                    >
+                      {requestingAppId === app.id ? "Requesting..." : "Request access"}
+                    </button>
+                  ) : null}
+                  {cardState === "pending" ? (
+                    <button type="button" disabled className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-400">
+                      Pending approval
+                    </button>
+                  ) : null}
+                  {cardState === "declined" ? (
+                    <span className="text-xs font-semibold text-red-300">Request declined</span>
+                  ) : null}
+                </div>
+              </div>
+            )})}
           </div>
         </section>
       </div>

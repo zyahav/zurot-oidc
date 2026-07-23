@@ -33,6 +33,20 @@ test('resolveClientToProduct("mall-hebrew-adventures") resolves to "game"', asyn
   assert.equal(engine.resolveClientToProduct("mall-hebrew-adventures"), "game");
 });
 
+test('resolveClientToProduct("devices") resolves to "devices"', async () => {
+  const engine = await loadEngine();
+  assert.equal(engine.resolveClientToProduct("devices"), "devices");
+});
+
+test('translatePersonaToScopes("parent", "devices") returns device management scopes', async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(engine.translatePersonaToScopes("parent", "devices"), [
+    "devices:manage",
+    "devices:view",
+    "devices:command",
+  ]);
+});
+
 test("filterScopesToProduct isolates product scopes", async () => {
   const engine = await loadEngine();
   assert.deepEqual(
@@ -50,4 +64,39 @@ test("teacher token scopes for mall-hebrew-adventures are exactly isolated game 
   assert.deepEqual(scopes, ["game:instructor", "game:viewer"]);
   assert.equal(scopes.some((s: string) => s.startsWith("lms:")), false);
   assert.equal(scopes.some((s: string) => s.startsWith("hub:")), false);
+});
+
+test("parent token scopes for devices are exactly isolated devices scopes", async () => {
+  const engine = await loadEngine();
+  const product = engine.resolveClientToProduct("devices");
+  const rawScopes = engine.translatePersonaToScopes("parent", product);
+  const scopes = engine.filterScopesToProduct(rawScopes, product);
+
+  assert.deepEqual(scopes, ["devices:manage", "devices:view", "devices:command"]);
+  assert.equal(scopes.some((s: string) => s.startsWith("hub:")), false);
+  assert.equal(scopes.some((s: string) => s.startsWith("game:")), false);
+});
+
+test("override grants student devices scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(
+    engine.translatePersonaToScopes("student", "devices", [
+      {
+        profileId: "profile_1",
+        product: "devices",
+        scopes: ["devices:view", "devices:manage", "devices:command"],
+      },
+    ]),
+    ["devices:view", "devices:manage", "devices:command"]
+  );
+});
+
+test("student devices without override returns empty scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(engine.translatePersonaToScopes("student", "devices"), []);
+});
+
+test("revoked student devices access has no override and returns empty scopes", async () => {
+  const engine = await loadEngine();
+  assert.deepEqual(engine.translatePersonaToScopes("student", "devices", []), []);
 });

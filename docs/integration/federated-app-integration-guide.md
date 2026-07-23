@@ -16,6 +16,7 @@ Use this domain model for production:
 | `https://auth.zurot.org` | OIDC issuer and auth endpoints |
 | `https://meta.zurot.org` | Federated client app |
 | `https://phone.zurot.org` | Federated client app |
+| `https://devices.zurot.org` | Federated Android device management app |
 
 The OIDC issuer is:
 
@@ -58,6 +59,14 @@ redirect_uri: https://phone.zurot.org/auth/callback
 token_endpoint_auth_method: none
 ```
 
+For `devices.zurot.org`:
+
+```text
+client_id: devices
+redirect_uri: https://devices.zurot.org/auth/callback
+token_endpoint_auth_method: none
+```
+
 Browser apps are public clients. They must not store a client secret. Use Authorization Code with PKCE when the client framework supports it.
 
 Exact redirect URI matching is enforced. If an app uses a staging or local callback URL, that exact URL must also be registered.
@@ -82,6 +91,8 @@ ZUROT_POST_LOGOUT_REDIRECT_URI=https://meta.zurot.org
 ```
 
 Use `phone` and `https://phone.zurot.org/auth/callback` for the phone app.
+Use `devices` and `https://devices.zurot.org/auth/callback` for the Android
+device management app.
 
 If a framework expects standard OIDC names, use:
 
@@ -268,5 +279,20 @@ Discovery: https://auth.zurot.org/.well-known/openid-configuration
 JWKS: https://auth.zurot.org/.well-known/jwks.json
 User key: JWT sub
 Permissions: JWT scopes array
+Do not use Clerk directly.
+```
+
+## Minimal Handoff For Devices Dev
+
+```text
+Use ZurOt OIDC.
+Issuer: https://auth.zurot.org
+Client ID: devices
+Redirect URI: https://devices.zurot.org/auth/callback
+Flow: Authorization Code with PKCE
+Discovery: https://auth.zurot.org/.well-known/openid-configuration
+JWKS: https://auth.zurot.org/.well-known/jwks.json
+User key: JWT sub
+Permissions: JWT scopes array, devices:* for device management
 Do not use Clerk directly.
 ```

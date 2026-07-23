@@ -17,7 +17,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profileId, clientId, redirectUri, state, code_challenge, code_challenge_method } = body;
+    const {
+      profileId,
+      clientId,
+      redirectUri,
+      state,
+      nonce,
+      code_challenge,
+      code_challenge_method,
+    } = body;
 
     if (!profileId || !clientId || !redirectUri || !state) {
       return NextResponse.json(
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
         expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
         codeChallenge: code_challenge,
         codeChallengeMethod: "S256",
+        nonce: nonce || undefined,
       });
     } catch (error) {
       if (
@@ -81,6 +90,15 @@ export async function POST(request: NextRequest) {
       ) {
         return NextResponse.json(
           { error: "Profile not found or not owned by current user" },
+          { status: 403 }
+        );
+      }
+      if (
+        error instanceof Error &&
+        error.message.includes("not permitted for this client")
+      ) {
+        return NextResponse.json(
+          { error: "Profile is not permitted for this application" },
           { status: 403 }
         );
       }

@@ -7,6 +7,7 @@ import {
   resolveClientToProduct,
   filterScopesToProduct,
 } from "@/lib/translation-engine";
+import type { ScopeOverride } from "@/lib/translation-engine";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -96,7 +97,10 @@ export async function POST(request: NextRequest) {
     // ==========================================================================
     const persona = result.profile.role;
     const product = resolveClientToProduct(clientId);
-    const rawScopes = translatePersonaToScopes(persona, product);
+    const overrides = (await convexServer.query(api.profiles.getScopeOverridesForProfile, {
+      profileId: result.profileId,
+    })) as ScopeOverride[];
+    const rawScopes = translatePersonaToScopes(persona, product, overrides);
     const scopes = filterScopesToProduct(rawScopes, product);
 
     // Generate tokens with translated scopes
@@ -108,6 +112,7 @@ export async function POST(request: NextRequest) {
       clientId,
       accountId: `account_${result.userId}`, // Per OIDC spec v1.3: account_id as metadata
       scopes, // Translated scopes from persona
+      nonce: result.nonce,
     };
 
     const idToken = await generateIdToken(tokenPayload);

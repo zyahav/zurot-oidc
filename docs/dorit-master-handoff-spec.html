@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dorit Master Handoff Spec</title>
+  <style>
+    :root{--bg:#f6f7fb;--page:#fff;--ink:#172033;--muted:#5d6b82;--line:#dce3ef;--blue:#2563eb;--green:#16a34a;--amber:#d97706;--red:#dc2626;--dark:#0f172a;--soft:#eff6ff;--soft2:#f0fdf4;--soft3:#fff7ed;}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.58} main{max-width:1100px;margin:28px auto;padding:28px;background:var(--page);border-radius:20px;box-shadow:0 12px 35px rgba(15,23,42,.08)}
+    h1{margin:0 0 8px;font-size:34px;letter-spacing:-.03em} h2{margin-top:34px;border-top:1px solid var(--line);padding-top:24px;font-size:24px} h3{margin-top:22px;font-size:18px} p{margin:10px 0} ul,ol{padding-left:24px} li{margin:6px 0}.muted{color:var(--muted)}
+    .badge{display:inline-block;border-radius:999px;padding:5px 12px;font-weight:800;font-size:13px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff}.callout{border:1px solid #bfdbfe;background:var(--soft);border-radius:16px;padding:16px}.success{border-color:#bbf7d0;background:var(--soft2)}.warn{border-color:#fed7aa;background:var(--soft3)}.danger{border-color:#fecaca;background:#fef2f2}.pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:700;font-size:12px;margin:2px} code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace} pre{background:#0f172a;color:#e5e7eb;border-radius:14px;padding:14px;overflow:auto;font-size:13px}.flow{font-weight:800;color:#0f172a}.small{font-size:13px}.table{width:100%;border-collapse:collapse;margin:12px 0}.table th,.table td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.table th{background:#f8fafc}.ok{color:var(--green);font-weight:800}.no{color:var(--red);font-weight:800}.maybe{color:var(--amber);font-weight:800}@media(max-width:800px){main{margin:0;border-radius:0;padding:18px}.grid{grid-template-columns:1fr}h1{font-size:28px}}
+  </style>
+</head>
+<body>
+<main>
+  <span class="badge">Master Handoff - Draft v0.1</span>
+  <h1>Dorit: Central Operations Router, Visual Console, and Deterministic Workflow Engine</h1>
+  <p class="muted">Created for Zuriel / ZurOt. Purpose: bring together the Dorit idea across WhatsApp, Telegram, Phone, ZurOt Hub, PayPal, CRM, leads, calendar, and Facebook/Meta operations.</p>
+
+  <div class="callout success">
+    <strong>Core decision:</strong> The product name is <strong>Dorit</strong>. Dorit is not just a Telegram bot. Dorit is the operational center: people speak naturally, Dorit translates the request into a typed command proposal, deterministic code validates and executes, and every step appears visually on the operations screen.
+  </div>
+
+  <h2>1. Product definition</h2>
+  <p><strong>Dorit</strong> is a central admin/operator layer for ZurOt and later other schools or service businesses.</p>
+  <p>Dorit receives natural language from people through any channel, identifies who they are, loads only the relevant context, routes the request to the correct module, executes only deterministic approved workflows, and writes a visible audit trail.</p>
+
+  <h3>Channels Dorit can receive from</h3>
+  <div class="grid">
+    <div class="card"><strong>WhatsApp</strong><br><span class="muted">Parents, teachers, coordinators, existing bridge where available.</span></div>
+    <div class="card"><strong>Telegram</strong><br><span class="muted">Preferred internal pilot channel because bot API and message IDs are more deterministic.</span></div>
+    <div class="card"><strong>Web chat</strong><br><span class="muted">Dorit web surface at dorit.zurot.org.</span></div>
+    <div class="card"><strong>Phone app</strong><br><span class="muted">Teachers use the calling app, likely phone.zurot.org, and Dorit sees every login/call/outcome event.</span></div>
+  </div>
+
+  <h3>Domains Dorit can route to</h3>
+  <p>
+    <span class="pill">CRM / All-Contacts</span>
+    <span class="pill">PayPal invoices</span>
+    <span class="pill">Leads</span>
+    <span class="pill">Phone / calling</span>
+    <span class="pill">Calendar</span>
+    <span class="pill">Facebook / Meta ads and leads</span>
+    <span class="pill">Teacher availability</span>
+    <span class="pill">Parent/student support</span>
+  </p>
+
+  <h2>2. Non-negotiable architecture principle</h2>
+  <div class="callout warn">
+    <strong>The LLM is not the operator.</strong><br>
+    The LLM is an untrusted translator from natural language into a typed command proposal. Deterministic code validates, authorizes, checks state, asks approval when needed, and executes.
+  </div>
+
+  <pre>Human natural language
+  -> Channel adapter normalizes message
+  -> Identity resolver links sender to ZurOt profile
+  -> Context builder loads only relevant context
+  -> LLM proposes typed command JSON
+  -> Schema validation
+  -> Entity resolution
+  -> Permission and ownership check
+  -> State machine validation
+  -> Idempotency check
+  -> Approval gate if risky
+  -> Deterministic workflow execution
+  -> Reply/delivery proof
+  -> Visual audit event trail</pre>
+
+  <h2>3. Why Dorit solves the WhatsApp headache</h2>
+  <p>The old problem was hidden state: messages could arrive, cursors could move, processes could run, but the real outcome was unclear. Dorit must make the real contract visible:</p>
+  <ul>
+    <li>Every inbound message has a stable event id and trace id.</li>
+    <li>Every outgoing reply has delivery proof or a visible failure.</li>
+    <li>Every short answer like "yes" is tied to a specific pending action in that specific person's thread.</li>
+    <li>No global mixed context. No borrowing context between teachers, parents, groups, or projects.</li>
+    <li>If Dorit cannot safely resolve meaning, it asks a clarification instead of guessing.</li>
+  </ul>
+
+  <h2>4. Identity and permissions: use ZurOt Hub / OIDC</h2>
+  <p>The ZurOt hub repo already provides the right foundation:</p>
+  <pre>/Users/zyahav/Documents/dev/ZurOt.org/zurot-hub-monorepo</pre>
+  <ul>
+    <li>OIDC provider / hub</li>
+    <li>Profile-based login</li>
+    <li>OIDC clients</li>
+    <li>JWT tokens</li>
+    <li>Permissions through <code>scopes</code></li>
+    <li>Profile identity as <code>sub = profile_...</code></li>
+  </ul>
+
+  <h3>Required Dorit OIDC client</h3>
+  <pre>client_id: dorit
+issuer: https://auth.zurot.org
+redirect_uri: https://dorit.zurot.org/auth/callback
+app_url: https://dorit.zurot.org</pre>
+
+  <h3>Identity rule</h3>
+  <p>Dorit must key user data by ZurOt profile subject, not email, phone, Telegram username, or WhatsApp display name.</p>
+  <pre>{
+  "sub": "profile_...",
+  "name": "Noam",
+  "preferred_username": "noam",
+  "account_id": "account_...",
+  "scopes": ["dorit:chat", "dorit:lead:receive", "dorit:lead:call"]
+}</pre>
+
+  <h3>RBAC plus object permissions</h3>
+  <p>Start with RBAC roles, but do not stop there. Dorit also needs object-level authorization.</p>
+  <table class="table">
+    <tr><th>Layer</th><th>Question answered</th><th>Example</th></tr>
+    <tr><td>RBAC</td><td>What can this role generally do?</td><td>Teacher can receive leads.</td></tr>
+    <tr><td>Scopes</td><td>What app permission was granted?</td><td><code>dorit:lead:call</code></td></tr>
+    <tr><td>Object authorization</td><td>Can this specific person act on this specific object?</td><td>Noam can call only leads assigned/offered to Noam.</td></tr>
+    <tr><td>Runtime check</td><td>Is the action still valid now?</td><td>Lead is still unassigned, not already called.</td></tr>
+  </table>
+
+  <h2>5. Per-user context model</h2>
+  <p>Dorit must maintain isolated context per linked profile and channel thread.</p>
+  <pre>tenant: zurot
+profile_sub: profile_noam
+channels:
+  telegram: telegram_user_id_...
+  whatsapp: whatsapp_thread_ref_...
+  web: dorit_web_session_...
+state:
+  availability: available | busy | unknown
+  active_leads: [...]
+  pending_actions: [...]
+  recent_thread_ledger: last 7 days or last N events
+permissions:
+  scopes: [...]
+  object_grants: [...]</pre>
+
+  <h3>How Dorit handles "yes"</h3>
+  <pre>Inbound: "yes"
+Sender: profile_noam
+Channel: telegram
+
+Dorit loads:
+- Noam's private Telegram thread
+- Noam's open pending actions
+- Last question Dorit asked Noam
+- The attached lead/invoice/calendar object
+
+If exactly one pending action expects yes/no:
+  execute that specific transition
+Else:
+  ask a clarification</pre>
+
+  <h2>6. Typed command proposal example</h2>
+  <p>Natural language is allowed at the edge. After that, Dorit forces structure.</p>
+  <pre>Input message:
+"I am free now. Give me the new lead from Spain."
+
+LLM may propose:
+{
+  "command_type": "accept_lead",
+  "actor_sub": "profile_noam",
+  "availability_update": "available_now",
+  "lead_filter": { "country": "Spain", "status": "new" },
+  "confidence": 0.94
+}
+
+Deterministic code must verify:
+- actor_sub matches authenticated sender
+- Noam has permission
+- the Spanish lead exists and is uniquely resolved
+- the lead is still available
+- Noam is eligible
+- no duplicate message/action exists
+- action is allowed in current workflow state</pre>
+
+  <h2>7. Visual operations console: must exist from v0</h2>
+  <p>This is not a later dashboard. The visual console is part of Dorit's safety system.</p>
+  <div class="callout success">
+    <strong>Goal:</strong> Zuriel can see everything live: who logged in, what request arrived, what context was injected, what command was proposed, what code validated, what workflow ran, what external API was called, what reply was sent, and what failed.
+  </div>
+
+  <h3>Events visible on the screen</h3>
+  <ul>
+    <li>Teacher logged into phone.zurot.org.</li>
+    <li>Parent sent WhatsApp question about invoice/payment.</li>
+    <li>Telegram teacher replied "yes" to lead offer.</li>
+    <li>Dorit linked external channel identity to ZurOt profile.</li>
+    <li>LLM proposed a typed command.</li>
+    <li>Schema passed or failed.</li>
+    <li>Permission check passed or failed.</li>
+    <li>Approval requested from admin.</li>
+    <li>PayPal invoice inspected, modified, or blocked.</li>
+    <li>Phone call started, connected, ended, and outcome recorded.</li>
+    <li>Facebook/Meta lead imported or assigned.</li>
+    <li>Calendar event proposed or created.</li>
+  </ul>
+
+  <h3>Event schema</h3>
+  <pre>{
+  "event_id": "evt_...",
+  "trace_id": "trace_...",
+  "tenant_id": "zurot",
+  "timestamp": "2026-07-13T...Z",
+  "source_app": "telegram | whatsapp | dorit-web | phone | paypal | meta | calendar",
+  "actor_sub": "profile_...",
+  "actor_role": "teacher | parent | coordinator | admin | owner",
+  "object_type": "lead | invoice | call | calendar_event | conversation",
+  "object_id": "...",
+  "stage": "received | parsed | validated | authorized | executed | delivered | failed",
+  "status": "ok | blocked | needs_approval | failed | retrying",
+  "safe_summary": "Noam accepted lead Sarah",
+  "redacted_details": {},
+  "links": {
+    "workflow_run": "...",
+    "approval": "..."
+  }
+}</pre>
+
+  <h2>8. Phone app integration</h2>
+  <p>When you say "phone", this means the ZurOt calling app teachers use to call leads, likely as a federated app such as <code>phone.zurot.org</code>.</p>
+  <p>Phone should emit events to Dorit:</p>
+  <pre>teacher_logged_in
+lead_card_opened
+call_button_clicked
+call_started
+call_connected
+call_failed
+call_ended
+call_outcome_selected
+follow_up_needed</pre>
+  <p>Dorit's screen should show these live, and the lead workflow should update from these events.</p>
+
+  <h2>9. Parent/student use cases</h2>
+  <p>Dorit is not only for internal teachers. A parent can also speak naturally through WhatsApp, Telegram, or web.</p>
+  <table class="table">
+    <tr><th>User request</th><th>Dorit route</th><th>Safe behavior</th></tr>
+    <tr><td>"Did I pay this invoice?"</td><td>CRM + PayPal read-only lookup</td><td>Answer from verified invoice/payment data; no edits.</td></tr>
+    <tr><td>"Can you send me the payment link?"</td><td>PayPal family links</td><td>Only if identity and household match are verified.</td></tr>
+    <tr><td>"I need to reschedule."</td><td>Calendar / scheduling module</td><td>Offer options or create approval task depending rules.</td></tr>
+    <tr><td>"I want a new teacher."</td><td>CRM + coordinator workflow</td><td>Create coordinator task, do not expose private teacher data.</td></tr>
+    <tr><td>"Cancel my lesson."</td><td>Scheduling / policy module</td><td>Check policy, create request, ask confirmation if needed.</td></tr>
+  </table>
+
+  <h2>10. PayPal / invoice module boundary</h2>
+  <p>Dorit can use the existing PayPal tooling, but PayPal is a risky module. Start read-only, then add approval-gated actions.</p>
+  <pre>CRM source:
+/Users/zyahav/Documents/All-Contacts
+
+PayPal tooling:
+/Users/zyahav/Documents/dev/paypal/paypal-tool
+
+Known operations:
+- invoice-details
+- remove-item
+- find-series
+- series-report
+- cancel-series
+- cancel-invoice
+- remind-invoice
+- family-report
+- family-links</pre>
+
+  <h3>PayPal safety rules</h3>
+  <ul>
+    <li>Read-only invoice/payment answers can be allowed for verified users and matching household records.</li>
+    <li>Invoice modifications require admin approval unless explicitly scoped otherwise.</li>
+    <li>Recurring PayPal series are not safely editable through API; Dorit may report/find them and route admin to UI.</li>
+    <li>Every PayPal action requires idempotency key and visible proof.</li>
+  </ul>
+
+  <h2>11. First vertical slice</h2>
+  <p>Build the smallest full system that proves the architecture.</p>
+  <ol>
+    <li>Telegram or web message arrives: "I am available".</li>
+    <li>Sender is linked to ZurOt profile via OIDC linking.</li>
+    <li>Dorit creates event and trace.</li>
+    <li>LLM proposes <code>update_availability</code>.</li>
+    <li>Schema validates.</li>
+    <li>Permission validates: user can update own availability.</li>
+    <li>State changes deterministically.</li>
+    <li>Dorit replies with confirmation.</li>
+    <li>Operations screen shows every stage live.</li>
+  </ol>
+
+  <h3>Second vertical slice</h3>
+  <ol>
+    <li>Lead enters from Meta/Facebook or manual source.</li>
+    <li>Dorit finds eligible available teacher.</li>
+    <li>Dorit sends lead card to teacher.</li>
+    <li>Teacher replies yes/no or clicks button.</li>
+    <li>Pending action resolves exact meaning.</li>
+    <li>Teacher opens Phone call link.</li>
+    <li>Phone app emits call events.</li>
+    <li>Dorit updates lead status and screen.</li>
+  </ol>
+
+  <h2>12. Deployment shape</h2>
+  <table class="table">
+    <tr><th>Part</th><th>Recommended place</th><th>Reason</th></tr>
+    <tr><td>Dorit web app</td><td>Cloudflare Pages or VM behind Cloudflare</td><td>Public UI at dorit.zurot.org.</td></tr>
+    <tr><td>Dorit API/workers</td><td>VM first</td><td>Durable processes, integrations, logs, easier operations.</td></tr>
+    <tr><td>Telegram webhook</td><td>Cloudflare route to VM</td><td>Stable public endpoint, deterministic backend.</td></tr>
+    <tr><td>WhatsApp bridge</td><td>Existing bridge initially, later normalized adapter</td><td>Do not block Dorit on WhatsApp reliability.</td></tr>
+    <tr><td>Event ledger/database</td><td>Durable DB on VM/cloud</td><td>Append-only visibility and replay.</td></tr>
+    <tr><td>OIDC</td><td>ZurOt Hub / auth.zurot.org</td><td>Already established identity source.</td></tr>
+  </table>
+
+  <h2>13. Required workflow commands v0/v1</h2>
+  <p>Most Dorit actions should be fixed workflows, not open-ended agents.</p>
+  <pre>update_availability
+link_channel_identity
+create_pending_action
+resolve_pending_action
+import_lead
+offer_lead
+accept_lead
+decline_lead
+open_call_link
+record_call_event
+record_call_outcome
+lookup_invoice
+send_payment_link
+request_invoice_change
+approve_invoice_change
+schedule_demo_request
+record_calendar_event
+create_operator_approval</pre>
+
+  <h2>14. What not to do</h2>
+  <div class="callout danger">
+    <ul>
+      <li>Do not let the LLM directly execute PayPal, calendar, Facebook, or lead actions.</li>
+      <li>Do not use Telegram/WhatsApp identity alone for permissions.</li>
+      <li>Do not build one giant mixed chat memory.</li>
+      <li>Do not hide worker activity only in terminal logs.</li>
+      <li>Do not treat successful process/poller status as successful user outcome.</li>
+      <li>Do not allow retries to duplicate calls, lead assignments, or invoice changes.</li>
+    </ul>
+  </div>
+
+  <h2>15. Acceptance criteria for Dorit v0</h2>
+  <ul>
+    <li class="ok">A user can link Telegram or web chat to a ZurOt profile.</li>
+    <li class="ok">Dorit can receive a natural language availability message.</li>
+    <li class="ok">Dorit creates a typed command proposal.</li>
+    <li class="ok">Code validates, authorizes, and updates state deterministically.</li>
+    <li class="ok">A confirmation reply is sent and delivery/result is recorded.</li>
+    <li class="ok">The operations screen shows the full trace from inbound to final outcome.</li>
+    <li class="ok">A plain "yes" is resolved only through that user's pending action, or Dorit asks for clarification.</li>
+    <li class="ok">All events have trace IDs and idempotency keys.</li>
+  </ul>
+
+  <h2>16. Suggested first implementation plan</h2>
+  <ol>
+    <li>Create Dorit repo or app package: <code>dorit</code>.</li>
+    <li>Register OIDC client <code>dorit</code> in ZurOt Hub.</li>
+    <li>Build minimal <code>dorit.zurot.org</code> web shell with login and profile/scopes display.</li>
+    <li>Add event ledger and live operations screen.</li>
+    <li>Add Telegram linking flow.</li>
+    <li>Add message ingestion envelope.</li>
+    <li>Add LLM translator for only <code>update_availability</code>.</li>
+    <li>Add deterministic validator/executor for <code>update_availability</code>.</li>
+    <li>Add pending action model and yes/no resolver.</li>
+    <li>Add lead offer and Phone/call event integration.</li>
+    <li>Add read-only CRM/PayPal lookup.</li>
+    <li>Add approval-gated PayPal actions later.</li>
+  </ol>
+
+  <h2>17. Open decisions</h2>
+  <ul>
+    <li>Should Dorit be a new standalone repo, or a new app/package inside the ZurOt monorepo?</li>
+    <li>Where will the durable event ledger live: Convex, Postgres, SQLite on VM, or another DB?</li>
+    <li>What is the first public channel: Telegram, web chat, or both?</li>
+    <li>What is the exact first Phone app event contract?</li>
+    <li>Which users are in the first pilot: Zuriel only, one teacher, or the full internal team?</li>
+    <li>What redaction level should the big screen use by default?</li>
+  </ul>
+
+  <h2>18. Professional verdict</h2>
+  <div class="callout success">
+    <p><strong>This can work.</strong> The vision is correct if Dorit is designed as an observable deterministic workflow system, not as a hidden free-agent chat bot.</p>
+    <p>The fastest safe path is a narrow prototype: ZurOt identity + Telegram/web input + availability workflow + visual trace screen. After that, add lead handoff and Phone calling. Then add PayPal/CRM read-only, and only later approval-gated financial actions.</p>
+  </div>
+
+  <h2>Back to Creator</h2>
+  <p class="muted">Supervisor link unavailable in this context.</p>
+</main>
+</body>
+</html>

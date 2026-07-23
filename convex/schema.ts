@@ -37,6 +37,19 @@ export default defineSchema({
     appId: v.string(),
   }).index("by_profile", ["profileId"]),
 
+  accessRequests: defineTable({
+    profileId: v.id("profiles"),
+    productKey: v.string(),
+    requestType: v.union(v.literal("product_access"), v.literal("add_device")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+    requestedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("profiles")),
+    reviewNote: v.optional(v.string()),
+  })
+    .index("by_profile", ["profileId"])
+    .index("by_status", ["status"]),
+
   activities: defineTable({
     activityId: v.string(),
     ownerProfileId: v.id("profiles"),
@@ -50,6 +63,44 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerProfileId"])
     .index("by_recency", ["createdAt"]),
+
+  tzuraDrafts: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    title: v.string(),
+    gameSpec: v.any(),
+    status: v.literal("draft"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    remixOfArtifactId: v.optional(v.id("tzuraArtifacts")),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_owner_updated", ["ownerProfileId", "updatedAt"]),
+
+  tzuraArtifacts: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    title: v.string(),
+    gameSpecSnapshot: v.any(),
+    version: v.number(),
+    status: v.literal("published"),
+    createdAt: v.number(),
+    immutable: v.literal(true),
+    sourceDraftId: v.id("tzuraDrafts"),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_source_draft", ["sourceDraftId"]),
+
+  tzuraFeedItems: defineTable({
+    ownerProfileId: v.id("profiles"),
+    familyId: v.optional(v.string()),
+    artifactId: v.id("tzuraArtifacts"),
+    type: v.literal("game"),
+    visibility: v.union(v.literal("public"), v.literal("private")),
+    createdAt: v.number(),
+  })
+    .index("by_owner", ["ownerProfileId"])
+    .index("by_artifact", ["artifactId"]),
 
   activeProfiles: defineTable({
     userId: v.string(),
@@ -67,6 +118,7 @@ export default defineSchema({
     consumed: v.boolean(),
     codeChallenge: v.optional(v.string()),
     codeChallengeMethod: v.optional(v.literal("S256")),
+    nonce: v.optional(v.string()),
   }).index("by_code", ["code"]),
 
   oauthClients: defineTable({
@@ -80,4 +132,42 @@ export default defineSchema({
     redirectUris: v.array(v.string()),
     backchannelLogoutUri: v.optional(v.string()),
   }).index("by_client_id", ["clientId"]),
+
+  tvPairings: defineTable({
+    deviceTokenHash: v.string(),
+    userCode: v.string(),
+    platform: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("claimed"),
+      v.literal("expired")
+    ),
+    expiresAt: v.number(),
+    deviceId: v.optional(v.id("tvDevices")),
+    approvedByUserId: v.optional(v.id("users")),
+    failedPinAttempts: v.optional(v.number()),
+    pinLockedUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status_expiry", ["status", "expiresAt"]),
+
+  tvDevices: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    tokenHash: v.string(),
+    platform: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    activeProfileId: v.optional(v.id("profiles")),
+    failedProfilePinAttempts: v.optional(v.number()),
+    profilePinLockedUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastSeenAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
 });

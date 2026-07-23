@@ -6,9 +6,9 @@ export type AvatarPreset = {
 };
 
 export const ROLE_LABEL: Record<ProfileRole, string> = {
-  student: "Student",
-  parent: "Parent",
-  teacher: "Teacher",
+  student: "Kid",
+  parent: "Adult",
+  teacher: "Adult",
 };
 
 export const ROLE_BADGE_CLASSES: Record<ProfileRole, string> = {

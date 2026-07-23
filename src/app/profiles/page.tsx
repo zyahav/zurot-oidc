@@ -7,6 +7,7 @@ import { useConvex, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { AddProfileModal } from "@/components/zurot/add-profile-modal";
+import { OwnerOnboarding, OwnerOnboardingValues } from "@/components/zurot/owner-onboarding";
 import { PinEntryModal } from "@/components/zurot/pin-entry-modal";
 import { ProfileAvatar } from "@/components/zurot/profile-avatar";
 import { SignOutConfirmModal } from "@/components/zurot/signout-confirm-modal";
@@ -19,13 +20,17 @@ export default function ProfilesPage() {
   const { openSignIn, signOut } = useClerk();
   const convex = useConvex();
   const profiles = useQuery(api.profiles.getProfiles, {});
+  const ownerPin = useQuery(api.profiles.getOwnerPin, {});
   const setActiveProfile = useMutation(api.profiles.setActiveProfile);
   const createProfile = useMutation(api.profiles.createProfile);
+  const bootstrapOwnerProfile = useMutation(api.profiles.bootstrapOwnerProfile);
   const [pendingId, setPendingId] = useState<Id<"profiles"> | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
+  const [ownerSetupBusy, setOwnerSetupBusy] = useState(false);
+  const [ownerSetupError, setOwnerSetupError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [pinModalProfile, setPinModalProfile] = useState<HubProfile | null>(null);
   const [pinInput, setPinInput] = useState("");
@@ -37,6 +42,7 @@ export default function ProfilesPage() {
 
   const profileList = useMemo(() => (profiles ?? []) as HubProfile[], [profiles]);
   const canAddProfile = profileList.length < 10;
+  const hasAdultProfile = profileList.some(profile => profile.role === "parent" || profile.role === "teacher");
 
   useEffect(() => {
     const email = new URLSearchParams(window.location.search).get("email")?.trim().toLowerCase() ?? "";
@@ -174,9 +180,38 @@ export default function ProfilesPage() {
         window.location.assign("/portal");
       }
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : "Failed to create profile.");
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("Maximum of 10 profiles")) {
+        pushToast("Maximum of 10 profiles reached.");
+      } else if (message.includes("Owner PIN verification required")) {
+        pushToast("Enter the correct owner PIN.");
+      } else if (message.includes("Set an owner PIN")) {
+        pushToast("Finish account-owner setup before creating an adult profile.");
+      } else {
+        pushToast("Failed to create profile. Please try again.");
+      }
     } finally {
       setCreateBusy(false);
+    }
+  };
+
+  const handleOwnerSetup = async (values: OwnerOnboardingValues) => {
+    setOwnerSetupBusy(true);
+    setOwnerSetupError(null);
+    try {
+      await bootstrapOwnerProfile(values);
+      pushToast("Account owner created.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("already complete")) {
+        setOwnerSetupError("Account-owner setup is already complete. Refresh to continue.");
+      } else if (message.includes("Maximum of 10 profiles")) {
+        setOwnerSetupError("This account has reached the profile limit. Contact support to finish owner setup.");
+      } else {
+        setOwnerSetupError("We couldn’t finish account-owner setup. Please try again.");
+      }
+    } finally {
+      setOwnerSetupBusy(false);
     }
   };
 
@@ -185,7 +220,7 @@ export default function ProfilesPage() {
     setSignOutBusy(true);
     try {
       await signOut();
-      window.location.href = "/profiles";
+      window.location.href = "/";
     } finally {
       setSignOutBusy(false);
     }
@@ -221,6 +256,33 @@ export default function ProfilesPage() {
     );
   }
 
+  if (ownerPin === undefined) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+        Loading account setup...
+      </main>
+    );
+  }
+
+  if (!ownerPin.hasPin && !hasAdultProfile) {
+    return (
+      <>
+        <OwnerOnboarding
+          busy={ownerSetupBusy}
+          serverError={ownerSetupError}
+          onSubmit={handleOwnerSetup}
+          onSignOut={() => setShowSignOutModal(true)}
+        />
+        <SignOutConfirmModal
+          open={showSignOutModal}
+          busy={signOutBusy}
+          onCancel={() => setShowSignOutModal(false)}
+          onConfirm={() => void confirmSignOut()}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <main className="relative min-h-screen bg-zinc-950 px-6 py-10">
@@ -229,7 +291,10 @@ export default function ProfilesPage() {
           <h1 className="mt-2 text-center text-4xl font-semibold text-zinc-50">Who&apos;s Watching?</h1>
           <p className="mt-2 text-center text-sm uppercase tracking-[0.2em] text-zinc-500">Select a profile to enter</p>
 
-          <div className="mt-8 flex items-center justify-end">
+          <div className="mt-8 flex items-center justify-end gap-5">
+            <Link href="/devices" className="text-sm font-medium text-zinc-300 underline">
+              Manage Devices
+            </Link>
             {profileList.length > 0 ? (
               <Link href="/profiles/manage" className="text-sm font-medium text-zinc-300 underline">
                 Manage Profiles

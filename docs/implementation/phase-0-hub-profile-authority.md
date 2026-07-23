@@ -88,6 +88,11 @@ Notes:
 - Validate handle uniqueness
 - Attach profile to current user
 - Default status: `active`
+- Maximum `10` profiles per user
+
+Current implementation note:
+- Server-side enforcement lives in `convex/profiles.ts` via `MAX_PROFILES_PER_USER = 10` and the `createProfile` mutation guard
+- UI enforcement is mirrored in `src/app/profiles/page.tsx` and `src/app/profiles/manage/manage-dashboard.tsx`, where the Add Profile action is disabled and the user sees `Maximum of 10 profiles reached.`
 
 ### Edit Profile
 - displayName
@@ -176,4 +181,3 @@ Only after Phase 0 is complete:
 ---
 
 End of Phase 0 Guide.
-

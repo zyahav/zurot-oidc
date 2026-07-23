@@ -99,7 +99,7 @@ async function run() {
 
     await page.getByRole("button", { name: /Add Profile/i }).first().click();
     await page.getByPlaceholder("e.g. Alex").fill(profileName);
-    await page.getByRole("button", { name: "Student", exact: true }).click();
+    await page.getByRole("button", { name: "Kid", exact: true }).click();
     await page.getByRole("button", { name: "Create Profile" }).click();
     await page.getByText("Profile created.", { exact: true }).waitFor({ timeout: 10000 });
     const createdCard = await page.locator("button", { hasText: profileName }).count();
@@ -296,11 +296,11 @@ async function run() {
 
       const updatedName = `${profileName} Renamed`;
       await page.locator('label:has-text("Name") + input').fill(updatedName);
-      await page.getByRole("button", { name: "Teacher", exact: true }).click();
+      await page.getByRole("button", { name: "Adult", exact: true }).click();
       await page.getByRole("button", { name: "Save Changes", exact: true }).click();
       await page.getByText("Profile updated.", { exact: true }).waitFor({ timeout: 10000 });
       profileName = updatedName;
-      createdRole = "teacher";
+      createdRole = "parent";
       record(4, "Edit profile name + role saves inline", true);
 
       if ((await page.getByRole("button", { name: "Remove", exact: true }).count()) > 0) {
