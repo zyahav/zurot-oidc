@@ -195,6 +195,51 @@ export const getActivationDetails = query({
   },
 });
 
+export const resolveManualPairing = mutation({
+  args: { userCode: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Sign in as the account owner to connect this TV.");
+    }
+
+    const normalizedCode = args.userCode.trim().toUpperCase();
+    if (!/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(normalizedCode)) {
+      return { found: false as const, error: "invalid_code" as const };
+    }
+
+    const ownerProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", q => q.eq("userId", identity.subject))
+      .filter(q =>
+        q.or(q.eq(q.field("role"), "parent"), q.eq(q.field("role"), "teacher"))
+      )
+      .first();
+    if (!ownerProfile) {
+      throw new Error("Account owner profile required.");
+    }
+
+    const pairing = await ctx.db
+      .query("tvPairings")
+      .withIndex("by_user_code", q => q.eq("userCode", normalizedCode))
+      .first();
+    if (
+      !pairing ||
+      pairing.status !== "pending" ||
+      pairing.expiresAt <= Date.now()
+    ) {
+      return { found: false as const, error: "invalid_code" as const };
+    }
+
+    return {
+      found: true as const,
+      pairingId: pairing._id,
+      userCode: pairing.userCode,
+      expiresAt: pairing.expiresAt,
+    };
+  },
+});
+
 export const approvePairing = mutation({
   args: {
     pairingId: v.id("tvPairings"),
