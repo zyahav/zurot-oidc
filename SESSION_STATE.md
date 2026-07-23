@@ -75,3 +75,14 @@ Copy into GitHub `production` environment as `VERCEL_TOKEN`
 ## Next task after T-012 manual steps
 
 Await new spec from PM.
+
+---
+
+## Current handoff — T-014 Meetings Stage 0
+
+- Completed: confidential `meetings` OAuth registration with production and localhost callbacks, Meetings app-catalog entry, and development-only `test-client` validation gate.
+- Branch: `codex/meetings-stage-0`
+- Runtime commit: `71cceba`
+- Convex production: `wonderful-trout-186`
+- Vercel production: `dpl_8ZaV6CUgLfBmv16ohXBX9eihcudj`
+- Next single task: human reviews Stage 0 evidence; do not begin Stage 1.

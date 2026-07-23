@@ -11,27 +11,27 @@
 
 ### Required Automated Checks
 
-- [ ] `npm test`
-- [ ] `npm run test:convex`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `npm run smoke:oidc`
+- [x] `npm test`
+- [x] `npm run test:convex`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `npm run smoke:oidc`
 
 ### Required Live Checks
 
-- [ ] Production `meetings` client accepts both approved redirect URIs.
-- [ ] Production `meetings` client rejects a wrong secret.
-- [ ] Production `test-client` is rejected by authorization and credential validation.
-- [ ] Production discovery, JWKS, token error, userinfo error, and hub UI smoke checks pass.
-- [ ] Production hub screenshot captured after deploy.
+- [x] Production `meetings` client accepts both approved redirect URIs.
+- [x] Production `meetings` client rejects a wrong secret.
+- [x] Production `test-client` is rejected by authorization and credential validation.
+- [x] Production discovery, JWKS, token error, userinfo error, and hub UI smoke checks pass.
+- [x] Production hub screenshot captured after deploy.
 
 ### Results
 
-- Automated checks: Pending.
-- Live checks: Pending.
-- Failures found: Pending.
-- Fix commit(s): Pending.
-- Final result: Pending.
+- Automated checks: `npm test` passed 23/23; `npm run test:convex` passed 8/8; lint passed with 0 errors and 6 pre-existing warnings; production build passed; production OIDC smoke passed all checks.
+- Live checks: Convex production `wonderful-trout-186` stores only a salted client-secret hash, accepts both Meetings callbacks with `client_secret_post`, rejects a wrong secret, and rejects `test-client` in both validation queries. Vercel deployment `dpl_8ZaV6CUgLfBmv16ohXBX9eihcudj` is Ready and serves `auth.zurot.org`; the live portal rendered the Meetings card with no browser console errors.
+- Failures found: Initial isolated-worktree builds lacked ignored environment variables; a Vercel local prebuild also rejected the project's Node 24 setting. The production build succeeded with the repository env loaded, and Vercel's remote builder deployed the unchanged project configuration.
+- Fix commit(s): `71cceba`.
+- Final result: `PASS`
 - Reviewer approval: Awaiting Stage 0 review.
 
 ---
